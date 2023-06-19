@@ -8,12 +8,12 @@
     "actor_critic":	"MLPActorCritic",
     "alpha":	0.2,
     "batch_size":	100,
-    "env_fn":	"<function <lambda> at 0x7f5fa5fe3620>",
-    "epochs":	50,
+    "env_fn":	"gazebo_env",
+    "epochs":	20,
     "exp_name":	"sac",
     "gamma":	0.99,
     "logger":	{
-        "<src.lab2pkg_py.scripts.utils.logx.EpochLogger object at 0x7f5fa600ab70>":	{
+        "<utils.logx.EpochLogger object at 0x7f2689a30128>":	{
             "epoch_dict":	{},
             "exp_name":	"sac",
             "first_row":	true,

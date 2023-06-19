@@ -1,3 +1,4 @@
+#!/home/ur3/anaconda3/envs/spinningup/bin/python3
 from copy import deepcopy
 import itertools
 import numpy as np
@@ -5,8 +6,9 @@ import torch
 from torch.optim import Adam
 import gym
 import time
-import src.lab2pkg_py.scripts.core as core
-from src.lab2pkg_py.scripts.utils.logx import EpochLogger
+# src.lab2pkg_py.scripts.core import *
+import core as core
+from utils.logx import EpochLogger
 
 
 class ReplayBuffer:
