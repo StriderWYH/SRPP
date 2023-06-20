@@ -12,36 +12,28 @@ from gym.utils import seeding
 from gym.envs.classic_control import rendering
 import time
 
-# Position for UR3 not blocking the camera
-go_away = [270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0]
-
-# Store world coordinates of green and yellow blocks
-xw_yw_G = []
-xw_yw_Y = []
-xw_yw_target_Blue = []
-
-destination_G = [(0.025,0.05,0.04)] # this G is used for the Green Block detection
-destination_Y = [(0.025,0.025,0.02)] # this Y is used for the orange Block detection
-mid_angle = [0.0,0.0,0.0,0.0,0.0,0.0] # middle point for moving the arm
 
 # Any other global variable you want to define
-# Hints: where to put the blocks?
 
+# Position for UR3 initialization, in radian
+go_away = np.array([270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0])
+# obervation bounds
+obs_low_bd = np.array([0.5*PI,-PI,-5*PI/180, -185* PI/180 ])
+obs_high_bd = np.array([3*PI/2, 0, 140*PI/180,-PI/2])
 
-
-
-################ Pre-defined parameters and functions no need to change below ################
+# Position for the target object with respect to the base?
+target_obj = np.array([0.4, 0.25,0.1]) # meter
 
 # 20Hz
 SPIN_RATE = 20
 
 # UR3 home location
-home = [0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0]
+home = np.array([0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0, 0*PI/180.0])
 
 # UR3 current position, using home position for initialization
 current_position = copy.deepcopy(home)
 
-thetas = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+thetas = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 digital_in_0 = 0
 analog_in_0 = 0.0
@@ -239,10 +231,13 @@ class gazebo_env(gym.Env):
     # 将会初始化动作空间与状态空间，便于强化学习算法在给定的状态空间中搜索合适的动作
     # 环境中会用的全局变量可以声明为类（self.）的变量
     def __init__(self):
-        self.action_space = spaces.Box(low=-5*PI/180, high=5*PI/180, shape=(4,), dtype=np.float64)  # 动作空间，[theta1,2,3,4(except for the ending effector)]
-        self.observation_space = spaces.Box(low=-5, high=5, shape=(4,), dtype=np.float64)     # 0,1,2,3,4：状态空间
-        self.state = None   # 当前状态
-        self.target = 4     # 安全/目标状态
+        self.action_space = spaces.Box(low=-5*PI/180, high=5*PI/180, shape=(4,), dtype=np.float64)  # [theta1,2,3,4(except for the ending effector)]
+        self.observation_space = spaces.Box(low=obs_low_bd, high=obs_high_bd, dtype=np.float64)     # the scope for the first four angle, except for the ending effector
+        self.state = go_away   # initial position
+        self.state_xyz = None
+        self.target_xyz = target_obj    # target xyz position
+        self.thr = 0.01                 # hyperparameter
+        self.weight = 0.69              # hyperparameter
         self.seed()
         self.viewer = rendering.Viewer(520, 200)    # 初始化一张画布
 
@@ -265,6 +260,7 @@ class gazebo_env(gym.Env):
         # Initialize the rate to publish to ur3/command
         loop_rate = rospy.Rate(SPIN_RATE)
 
+        # set the arm to home position
         vel = 4.0
         accel = 4.0
         move_arm(pub_command, loop_rate, go_away, vel, accel)
@@ -274,30 +270,40 @@ class gazebo_env(gym.Env):
         # 用来处理状态的转换逻辑
         # 返回动作的回报、下一时刻的状态、以及是否结束当前episode及调试信息
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
-        x = self.state
-        if action == 0:  # 不动
-            x = x
-        elif action == 1:  # 左
-            x = x - 1
-        elif action == 2:  # 右
-            x = x + 1
+        x = self.state + action
 
         # 在这里做一下限定，如果下一个动作导致智能体越过了环境边界（即不在状态空间中），则无视这个动作
         next_state = x
-        self.state = next_state if self.observation_space.contains(next_state) else self.state
+        next_state_xyz = lab_fk(x[0],x[1],x[2],x[3],0,135*PI/180)
+        if self.check_xyz(next_state_xyz) and self.observation_space.contains(next_state):
+            self.state = next_state
+            self.state_xyz = next_state_xyz
+        else:
+            self.state = self.state
+            self.state_xyz = self.state_xyz
 
         self.counts += 1
 
+        # 2nd and 3rd return value: reward and done
         # 如果到达了终点，给予一个回报
         # 在复杂环境中多种状态的反馈配比很重要
-        if self.state == self.target:
+        distance = np.linalg.norm(self.state_xyz - self.target_xyz)  # Euclidean distance
+        if distance <= self.thr:
             reward = 30
             done = True
         else:   # 如果是普通的一步，给予一个小惩罚，目的是为了减少起点到终点的总路程长度
-            reward = -1
+            reward = self.get_reward(distance, weight=self.weight)
             done = False
 
-        return self.state, reward, done
+        # 4th return value: info structure
+        info = {
+            'distance_error': distance,
+            'target_position': self.target_xyz,
+            'current_position': self.state_xyz,
+            'current_thetas' : self.state
+        }
+
+        return self.state, reward, done, info
 
     # 用于在每轮开始之前重置智能体的状态，把环境恢复到最开始
     # 在训练的时候，可以不指定startstate，随机选择初始状态，以便能尽可能全的采集到的环境中所有状态的数据反馈
@@ -344,3 +350,14 @@ class gazebo_env(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+    @staticmethod
+    def get_reward(distance, weight =0.69):
+
+        return -1*distance*weight
+    @staticmethod
+    def check_xyz(xyz):
+        if xyz[2]>=0:
+            return True
+        else:
+            return False

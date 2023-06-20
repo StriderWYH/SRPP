@@ -91,36 +91,41 @@ Function that calculates encoder numbers for each motor
 """
 def lab_fk(theta1, theta2, theta3, theta4, theta5, theta6):
 
-	# theta1 = theta1 - PI
-	# theta4 = theta4 + PI/2
+	# correct the modification made by the teach pendant
+	theta1 = theta1 - PI
+	theta4 = theta4 + PI/2
 	# Initialize the return_value
-	return_value = [None, None, None, None, None, None]
-	# M,S = Get_MS()
+	return_value = np.array([0.0,0.0,0.0])
+	M,S = Get_MS()
 	# print("Foward kinematics calculated:\n")
 
-	# # =================== Your code starts here ====================#
-	# T0 = expm(theta1*calculate(S[0]))
-	# T1 = expm(theta2*calculate(S[1]))
-	# T2 = expm(theta3*calculate(S[2]))
-	# T3 = expm(theta4*calculate(S[3]))
-	# T4 = expm(theta5*calculate(S[4]))
-	# T5 = expm(theta6*calculate(S[5]))
-	# T = np.matmul(T0,T1)
-	# T = np.matmul(T,T2)
-	# T = np.matmul(T,T3)
-	# T = np.matmul(T,T4)
-	# T = np.matmul(T,T5)
-	# T = np.matmul(T,M)
+	# =================== Your code starts here ====================#
+	T0 = expm(theta1*calculate(S[0]))
+	T1 = expm(theta2*calculate(S[1]))
+	T2 = expm(theta3*calculate(S[2]))
+	T3 = expm(theta4*calculate(S[3]))
+	T4 = expm(theta5*calculate(S[4]))
+	T5 = expm(theta6*calculate(S[5]))
+	T = np.matmul(T0,T1)
+	T = np.matmul(T,T2)
+	T = np.matmul(T,T3)
+	T = np.matmul(T,T4)
+	T = np.matmul(T,T5)
+	T = np.matmul(T,M)
 	# print(str(T) + "\n")
 
-	# ==============================================================#
+	return_value[0] = T[0][3]
+	return_value[1] = T[1][3]
+	return_value[2] = T[2][3]
 
-	return_value[0] = theta1 + PI
-	return_value[1] = theta2
-	return_value[2] = theta3
-	return_value[3] = theta4 - (0.5*PI)
-	return_value[4] = theta5
-	return_value[5] = theta6
+	# ==============================================================#
+	#
+	# return_value[0] = theta1 + PI
+	# return_value[1] = theta2
+	# return_value[2] = theta3
+	# return_value[3] = theta4 - (0.5*PI)
+	# return_value[4] = theta5
+	# return_value[5] = theta6
 
 	return return_value
 

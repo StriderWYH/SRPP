@@ -13,7 +13,7 @@
     "exp_name":	"sac",
     "gamma":	0.99,
     "logger":	{
-        "<utils.logx.EpochLogger object at 0x7f2689a30128>":	{
+        "<utils.logx.EpochLogger object at 0x7fc17f509160>":	{
             "epoch_dict":	{},
             "exp_name":	"sac",
             "first_row":	true,
