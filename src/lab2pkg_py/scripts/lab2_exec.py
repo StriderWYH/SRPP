@@ -42,12 +42,8 @@ def main():
     exp_name = 'sac'
 
     from utils.run_utils import setup_logger_kwargs
-
     logger_kwargs = setup_logger_kwargs(exp_name, seed)
-
     torch.set_num_threads(torch.get_num_threads())
-
-
 
     sac(env_fn=env, actor_critic=core.MLPActorCritic, ac_kwargs=dict(hidden_sizes=[hid] * l),
             gamma=gamma, seed=seed, epochs=epochs,

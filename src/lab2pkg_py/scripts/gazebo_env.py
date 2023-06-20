@@ -11,18 +11,21 @@ from gym import spaces
 from gym.utils import seeding
 from gym.envs.classic_control import rendering
 import time
+import math
 
 
 # Any other global variable you want to define
 
 # Position for UR3 initialization, in radian
 go_away = np.array([270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0])
-# obervation bounds
-obs_low_bd = np.array([0.5*PI,-PI,-5*PI/180, -185* PI/180 ])
-obs_high_bd = np.array([3*PI/2, 0, 140*PI/180,-PI/2])
 
 # Position for the target object with respect to the base?
-target_obj = np.array([0.4, 0.25,0.1]) # meter
+target_obj = np.array([400, 250,100]) # millimeter
+
+# obervation bounds
+obs_low_bd = np.array([0.5*PI,-PI,-5*PI/180, -185*PI/180])
+obs_high_bd = np.array([3*PI/2, 0, 140*PI/180,-PI/2])
+
 
 # 20Hz
 SPIN_RATE = 20
@@ -230,17 +233,20 @@ class gazebo_env(gym.Env):
 
     # 将会初始化动作空间与状态空间，便于强化学习算法在给定的状态空间中搜索合适的动作
     # 环境中会用的全局变量可以声明为类（self.）的变量
-    def __init__(self):
+    def __init__(self, thr=10, weight=0.069,vel=4.0,accel=4.0):
         self.action_space = spaces.Box(low=-5*PI/180, high=5*PI/180, shape=(4,), dtype=np.float64)  # [theta1,2,3,4(except for the ending effector)]
         self.observation_space = spaces.Box(low=obs_low_bd, high=obs_high_bd, dtype=np.float64)     # the scope for the first four angle, except for the ending effector
         self.state = go_away   # initial position
         self.state_xyz = None
         self.target_xyz = target_obj    # target xyz position
-        self.thr = 0.01                 # hyperparameter
-        self.weight = 0.69              # hyperparameter
+        self.thr = thr                 # hyperparameter, in millimeter
+        self.weight = weight              # hyperparameter
+        self.current_error = -math.inf
+        self.count = 0
         self.seed()
         self.viewer = rendering.Viewer(520, 200)    # 初始化一张画布
-
+        self.vel = vel
+        self.accel = accel
 
         # Initialize ROS node
         rospy.init_node('sacnode')
@@ -261,9 +267,8 @@ class gazebo_env(gym.Env):
         loop_rate = rospy.Rate(SPIN_RATE)
 
         # set the arm to home position
-        vel = 4.0
-        accel = 4.0
-        move_arm(pub_command, loop_rate, go_away, vel, accel)
+
+        move_arm(pub_command, loop_rate, go_away, self.vel, self.accel)
 
     def step(self, action):
         # 接收一个动作，执行这个动作
@@ -291,7 +296,11 @@ class gazebo_env(gym.Env):
         if distance <= self.thr:
             reward = 30
             done = True
-        else:   # 如果是普通的一步，给予一个小惩罚，目的是为了减少起点到终点的总路程长度
+        elif distance < self.current_error:
+            reward = 1
+            self.current_error = distance
+            done = False
+        else:
             reward = self.get_reward(distance, weight=self.weight)
             done = False
 

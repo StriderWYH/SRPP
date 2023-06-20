@@ -47,11 +47,8 @@ def Get_MS():
 	v = np.array([v0,v1,v2,v3,v4,v5])
  
 	S = np.array([[w0,v0],[w1,v1],[w2,v2],[w3,v3],[w4,v4],[w5,v5]])
-	# w_b = np.array([[0,-w3,w2],[w3,0,-w1],[-w2,w1,0]])
-	# S_b = np.array([[w_b,v],[0,0]])
-	#s_b = np.zeros(())
-	#s_b0 = np.array([[],[],[],[]])
-	M = np.array([[1,0,0,390],[0,1,0,401],[0,0,1,215.5],[0,0,0,1]])
+
+	M = np.array([[1,0,0,390],[0,1,0,401],[0,0,1,215.5],[0,0,0,1]]) # mm, same for real ur3 robot or the one for simulation
 
 
 
