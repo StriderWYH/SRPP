@@ -160,12 +160,13 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     act_limit = env.action_space.high[0]
 
     # 1: Create actor-critic module and target networks
-    ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+    # ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
 
     # 2:Or we can use a pretrained model
-    # ac = torch.load('/home/ur3/catkin_SRPP/src/lab2pkg_py/scripts/data/sac/sac_s0/pyt_save/model.pt')
+    ac = torch.load('/home/ur3/catkin_SRPP/src/lab2pkg_py/scripts/data/sac/sac_s0/pyt_save/model.pt')
     #
-    # ac_targ = deepcopy(ac)
+
+    ac_targ = deepcopy(ac)
 
     # Freeze target networks with respect to optimizers (only update via polyak averaging)
     for p in ac_targ.parameters():
@@ -281,7 +282,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 o, r, d, _ = test_env.step(get_action(o, True),move=True)
                 ep_ret += r
                 ep_len += 1
-            print("logger store in test_agent after d or reaching the max ep_len\n")
+            # print("logger store in test_agent after d or reaching the max ep_len\n")
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
 
     # Prepare for interaction with environment
@@ -319,7 +320,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # End of trajectory handling
         if d or (ep_len == max_ep_len):
-            print("logger store after done or reaching the max_epoch_length\n")
+            # print("logger store after done or reaching the max_epoch_length\n")
             logger.store(EpRet=ep_ret, EpLen=ep_len) # to store the result of current epoch
             o, ep_ret, ep_len = env.reset(), 0, 0
 
@@ -335,7 +336,8 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
             # Save model
             if (epoch % save_freq == 0) or (epoch == epochs):
-                print("Now logger save_state after each epoch\n")
+                print("So far the accumulated number of dones is : %i  \n" %int(env.count_done))
+                print("Now logger save_state after each epoch")
                 logger.save_state({'env': env}, None)  # to save the current network model and the env after each epoch
 
             # Test the performance of the deterministic version of the agent.

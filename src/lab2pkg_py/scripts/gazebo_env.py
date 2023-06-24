@@ -235,7 +235,7 @@ class gazebo_env(gym.Env):
 
     # 将会初始化动作空间与状态空间，便于强化学习算法在给定的状态空间中搜索合适的动作
     # 环境中会用的全局变量可以声明为类（self.）的变量
-    def __init__(self, thr=100, weight=0.069,vel=4.0,accel=4.0):
+    def __init__(self, thr=60, weight=0.0039,vel=4.0,accel=4.0):
         self.action_space = spaces.Box(low=-5*PI/180, high=5*PI/180, shape=(4,), dtype=np.float64)  # [theta1,2,3,4(except for the ending effector)]
         self.observation_space = spaces.Box(low=obs_low_bd, high=obs_high_bd, dtype=np.float64)     # the scope for the first four angle, except for the ending effector
         self.state = go_away   # initial position
@@ -245,6 +245,7 @@ class gazebo_env(gym.Env):
         self.weight = weight              # hyperparameter
         self.current_error = -math.inf
         self.count = 0
+        self.count_done = 0
         self.seed()
 
         self.vel = vel
@@ -304,6 +305,7 @@ class gazebo_env(gym.Env):
         distance = np.linalg.norm(self.state_xyz - self.target_xyz)  # Euclidean distance
         if distance <= self.thr:
             reward = 30
+            self.count_done += 1
             done = True
         elif distance < self.current_error:
             reward = 10

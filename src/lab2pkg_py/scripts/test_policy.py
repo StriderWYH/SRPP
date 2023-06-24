@@ -1,12 +1,14 @@
+#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+import rospy
 import time
 import joblib
 import os
 import os.path as osp
 import tensorflow as tf
 import torch
-from src.lab2pkg_py.scripts.utils.logx import EpochLogger
-from src.lab2pkg_py.scripts.utils.logx import restore_tf_graph
-from src.lab2pkg_py.scripts.gazebo_env import gazebo_env
+from utils.logx import EpochLogger
+from utils.logx import restore_tf_graph
+from gazebo_env import gazebo_env
 
 def load_policy_and_env(fpath, itr='last', deterministic=False):
     """
@@ -137,19 +139,36 @@ def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True):
     logger.dump_tabular()
 
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('fpath', type=str,default= 'src/lab2pkg_py/scripts/data/sac/sac_s0')
-    parser.add_argument('--len', '-l', type=int, default=0)
-    parser.add_argument('--episodes', '-n', type=int, default=100)
-    parser.add_argument('--norender', '-nr', action='store_true',default= False)
-    parser.add_argument('--itr', '-i', type=int, default=-1)
-    parser.add_argument('--deterministic', '-d', action='store_true')
-    args = parser.parse_args()
-    env, get_action = load_policy_and_env(args.fpath, 
-                                          args.itr if args.itr >=0 else 'last',
-                                          args.deterministic)
-    env = gazebo_env
+def main():
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('fpath', type=str,default= 'src/lab2pkg_py/scripts/data/sac/sac_s0')
+    # parser.add_argument('--len', '-l', type=int, default=0)
+    # parser.add_argument('--episodes', '-n', type=int, default=100)
+    # parser.add_argument('--norender', '-nr', action='store_true',default= False)
+    # parser.add_argument('--itr', '-i', type=int, default=-1)
+    # parser.add_argument('--deterministic', '-d', action='store_true')
+    # args = parser.parse_args()
+
+    fpath = 'src/lab2pkg_py/scripts/data/sac/sac_s0'
+    len = 0
+    episodes = 10
+    norender = True
+    itr = -1
+    deterministic = False
+
+    env, get_action = load_policy_and_env(fpath,
+                                          itr if itr >=0 else 'last',
+                                          deterministic)
+    env = gazebo_env()
     ##print(env)
-    run_policy(env, get_action, args.len, args.episodes, not(args.norender))
+    run_policy(env, get_action, len, episodes, not(norender))
+
+
+if __name__ == '__main__':
+
+    try:
+        main()
+    # When Ctrl+C is executed, it catches the exception
+    except rospy.ROSInterruptException:
+        pass
