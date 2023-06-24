@@ -23,7 +23,7 @@ def Get_MS():
 	w3 = np.array([0,1,0])
 	w4 = np.array([1,0,0])
 	w5 = np.array([0,1,0])
-
+# referred to world coordinate
 	q0 = np.array([-150,150,10])
 	q1 = np.array([-150,270,162])
 	q2 = np.array([94,270,162])
@@ -48,7 +48,9 @@ def Get_MS():
  
 	S = np.array([[w0,v0],[w1,v1],[w2,v2],[w3,v3],[w4,v4],[w5,v5]])
 
-	M = np.array([[1,0,0,390],[0,1,0,401],[0,0,1,215.5],[0,0,0,1]]) # mm, same for real ur3 robot or the one for simulation
+	# mm, world coordinate, same for real ur3 robot or the one for simulation at [PI,0,0,-PI/2,0,0]
+	M = np.array([[1,0,0,390],[0,1,0,401],[0,0,1,215.5],[0,0,0,1]])
+
 
 
 
@@ -190,4 +192,4 @@ def lab_invk(xWgrip, yWgrip, zWgrip, yaw_WgripDegree):
 	
 
 	# ==============================================================#
-	return lab_fk(theta1, theta2, theta3, theta4, theta5, theta6)
+	return theta1+PI, theta2, theta3, theta4 - (0.5*PI), theta5, theta6

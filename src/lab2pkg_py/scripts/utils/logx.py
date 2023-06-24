@@ -97,6 +97,7 @@ class Logger:
         """
         if proc_id()==0:
             self.output_dir = output_dir or "/tmp/experiments/%i"%int(time.time())
+            print("output_dir is : %s \n" %output_dir)
             if osp.exists(self.output_dir):
                 print("Warning: Log dir %s already exists! Storing info there anyway."%self.output_dir)
             else:
@@ -185,11 +186,15 @@ class Logger:
             try:
                 joblib.dump(state_dict, osp.join(self.output_dir, fname))
             except:
+                print(osp.join(self.output_dir, fname))
+                print("\n")
+                print(state_dict)
                 self.log('Warning: could not pickle state_dict.', color='red')
             if hasattr(self, 'tf_saver_elements'):
                 self._tf_simple_save(itr)
             if hasattr(self, 'pytorch_saver_elements'):
                 self._pytorch_simple_save(itr)
+                print("pytorch simple save \n")
 
     def setup_tf_saver(self, sess, inputs, outputs):
         """

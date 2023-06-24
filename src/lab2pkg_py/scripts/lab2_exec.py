@@ -12,7 +12,7 @@ from project_func import *
 #from blob_search import *
 from sac import sac
 import core as core
-from gazebo_env import gazebo_env
+from gazebo_env import *
 import torch
 from torch.optim import Adam
 

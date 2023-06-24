@@ -17,10 +17,10 @@ import math
 # Any other global variable you want to define
 
 # Position for UR3 initialization, in radian
-go_away = np.array([270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0])
+go_away = np.array([180*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0])
 
-# Position for the target object with respect to the base?
-target_obj = np.array([400, 250,100]) # millimeter
+# Position for the target object with respect to the world coordinate
+target_obj = np.array([300,50,150]) # millimeter
 
 # obervation bounds
 obs_low_bd = np.array([0.5*PI,-PI,-5*PI/180, -185*PI/180])
@@ -174,6 +174,8 @@ def move_arm(pub_cmd, loop_rate, dest, vel, accel):
 
             pub_cmd.publish(driver_msg)
             rospy.loginfo("Just published again driver_msg")
+            print("The infeasible thetas are: \n")
+            print(dest)
             spin_count = 0
 
         spin_count = spin_count + 1
@@ -233,18 +235,18 @@ class gazebo_env(gym.Env):
 
     # 将会初始化动作空间与状态空间，便于强化学习算法在给定的状态空间中搜索合适的动作
     # 环境中会用的全局变量可以声明为类（self.）的变量
-    def __init__(self, thr=10, weight=0.069,vel=4.0,accel=4.0):
+    def __init__(self, thr=100, weight=0.069,vel=4.0,accel=4.0):
         self.action_space = spaces.Box(low=-5*PI/180, high=5*PI/180, shape=(4,), dtype=np.float64)  # [theta1,2,3,4(except for the ending effector)]
         self.observation_space = spaces.Box(low=obs_low_bd, high=obs_high_bd, dtype=np.float64)     # the scope for the first four angle, except for the ending effector
         self.state = go_away   # initial position
-        self.state_xyz = None
+        self.state_xyz = lab_fk(self.state[0],self.state[1],self.state[2],self.state[3],-90*PI/180.0 ,135*PI/180)
         self.target_xyz = target_obj    # target xyz position
         self.thr = thr                 # hyperparameter, in millimeter
         self.weight = weight              # hyperparameter
         self.current_error = -math.inf
         self.count = 0
         self.seed()
-        self.viewer = rendering.Viewer(520, 200)    # 初始化一张画布
+
         self.vel = vel
         self.accel = accel
 
@@ -252,37 +254,44 @@ class gazebo_env(gym.Env):
         rospy.init_node('sacnode')
 
         # Initialize publisher for ur3/command with buffer size of 10
-        pub_command = rospy.Publisher('ur3/command', command, queue_size=10)
+        self.pub_command = rospy.Publisher('ur3/command', command, queue_size=10)
 
         # Initialize subscriber to ur3/position & ur3/gripper_input and callback fuction
         # each time data is published
-        sub_position = rospy.Subscriber('ur3/position', position, position_callback)
-        sub_input = rospy.Subscriber('ur3/gripper_input', gripper_input, input_callback)
+        self.sub_position = rospy.Subscriber('ur3/position', position, position_callback)
+        self.sub_input = rospy.Subscriber('ur3/gripper_input', gripper_input, input_callback)
 
         # Check if ROS is ready for operation
         while (rospy.is_shutdown()):
             print("ROS is shutdown!")
 
         # Initialize the rate to publish to ur3/command
-        loop_rate = rospy.Rate(SPIN_RATE)
+        self.loop_rate = rospy.Rate(SPIN_RATE)
 
         # set the arm to home position
 
-        move_arm(pub_command, loop_rate, go_away, self.vel, self.accel)
+        move_arm(self.pub_command, self.loop_rate, go_away, self.vel, self.accel)
 
-    def step(self, action):
+    def step(self, action, move=False):
         # 接收一个动作，执行这个动作
         # 用来处理状态的转换逻辑
         # 返回动作的回报、下一时刻的状态、以及是否结束当前episode及调试信息
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         x = self.state + action
 
+
         # 在这里做一下限定，如果下一个动作导致智能体越过了环境边界（即不在状态空间中），则无视这个动作
         next_state = x
-        next_state_xyz = lab_fk(x[0],x[1],x[2],x[3],0,135*PI/180)
+        next_state_xyz = lab_fk(x[0],x[1],x[2],x[3], -90*PI/180.0 ,135*PI/180)
         if self.check_xyz(next_state_xyz) and self.observation_space.contains(next_state):
             self.state = next_state
             self.state_xyz = next_state_xyz
+            # print(next_state)
+            # print("\n")
+        # When testing, move the arm through ROS
+            if move==True:
+                input_six_theta = np.hstack((self.state, np.array([-90*PI/180.0, 135*PI/180])))
+                move_arm(self.pub_command, self.loop_rate, input_six_theta, self.vel, self.accel)
         else:
             self.state = self.state
             self.state_xyz = self.state_xyz
@@ -297,7 +306,7 @@ class gazebo_env(gym.Env):
             reward = 30
             done = True
         elif distance < self.current_error:
-            reward = 1
+            reward = 10
             self.current_error = distance
             done = False
         else:
@@ -330,31 +339,11 @@ class gazebo_env(gym.Env):
     # render()绘制可视化环境的部分都写在这里
     def render(self, mode='human'):
         # 布置状态
-        for i in range(self.observation_space.n):
-            self.viewer.draw_line(
-                (20, 30), (100, 30), color=(0, 0, 0)
-            ).add_attr(rendering.Transform((100 * i, 0)))
 
-        # 目标位置
-        self.viewer.draw_line(
-            (20, 30),
-            (100, 30),
-            color=(0, 1, 0),
-        ).add_attr(rendering.Transform((100 * 4, 0)))
-
-        # 绘制当前位置
-        self.viewer.draw_polygon(
-            [(60, 30), (80, 100), (40, 100)], color=(0, 1, 0)
-        ).add_attr(rendering.Transform((100 * self.state, 0)))
-        self.viewer.draw_circle(
-            20, 20, True, color=(0, 1, 0)
-        ).add_attr(rendering.Transform((60 + 100 * self.state, 120)))
-
-        return self.viewer.render(return_rgb_array=mode == 'human')
+        pass
 
     def close(self):
-        if self.viewer:
-            self.viewer.close()
+        pass
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)

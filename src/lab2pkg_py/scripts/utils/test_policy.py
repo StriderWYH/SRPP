@@ -6,7 +6,7 @@ import tensorflow as tf
 import torch
 from src.lab2pkg_py.scripts.utils.logx import EpochLogger
 from src.lab2pkg_py.scripts.utils.logx import restore_tf_graph
-
+from src.lab2pkg_py.scripts.gazebo_env import gazebo_env
 
 def load_policy_and_env(fpath, itr='last', deterministic=False):
     """
@@ -122,7 +122,7 @@ def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True):
             time.sleep(1e-3)
 
         a = get_action(o)
-        o, r, d, _ = env.step(a)
+        o, r, d, _ = env.step(a,move=True)
         ep_ret += r
         ep_len += 1
 
@@ -150,5 +150,6 @@ if __name__ == '__main__':
     env, get_action = load_policy_and_env(args.fpath, 
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
+    env = gazebo_env
     ##print(env)
     run_policy(env, get_action, args.len, args.episodes, not(args.norender))
