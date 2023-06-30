@@ -43,13 +43,13 @@
    <!--<include file="$(find smartcar_description)/launch/xacro/smartcar_gazebo.launch"/>
    -->
   <!-- <include file="$(find diff_wheeled_robot_gazebo)/launch/diff_wheeled_gazebo.launch"/> -->
- 
- <param name="robot_description2" command="$(find xacro)/xacro $(find diff_wheeled_robot_gazebo)/urdf/diff_wheeled_robot.xacro" />
+
+<!--  <param name="robot_description2" command="$(find xacro)/xacro $(find diff_wheeled_robot_gazebo)/urdf/diff_wheeled_robot.xacro" /> -->
 
 
-  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
-  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
-	args="-urdf -model diff_wheeled_robot -param robot_description2"/> 
+<!--    --><!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+<!--   <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" -->
+<!-- 	args="-urdf -model diff_wheeled_robot -param robot_description2"/>  -->
 
   <include file="$(find ur3_driver)/launch/ece470_vision_driver.launch"/>
 

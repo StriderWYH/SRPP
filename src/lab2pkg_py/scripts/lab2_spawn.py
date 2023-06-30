@@ -58,7 +58,7 @@ if __name__ == '__main__':
     random.shuffle(x_ranlist)
     random.shuffle(y_ranlist)
         
-    choice_user = raw_input("Spawn randomly or not < 1 for random>: ")
+    # choice_user = raw_input("Spawn randomly or not < 1 for random>: ")
     # if int(choice_user) == 1:
     #     xy_ran = []
 
