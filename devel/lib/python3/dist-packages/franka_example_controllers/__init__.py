@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/franka_example_controllers/lib/python3/dist-packages/franka_example_controllers/__init__.py

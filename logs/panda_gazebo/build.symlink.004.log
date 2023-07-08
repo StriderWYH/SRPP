@@ -1,0 +1,7 @@
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/panda_gazebo/cmake/panda_gazeboConfig.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/panda_gazebo/cmake/panda_gazeboConfig-version.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libpanda_robot_hw_sim.so
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libpanda_gazebo_ros_control.so
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/pkgconfig/panda_gazebo.pc
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/panda_gazebo/force_neutral_pose.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/panda_gazebo/cmake.lock

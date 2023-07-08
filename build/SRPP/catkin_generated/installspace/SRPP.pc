@@ -1,0 +1,8 @@
+prefix=/home/ur3/catkin_FrankaPanda/install
+
+Name: SRPP
+Description: Description of SRPP
+Version: 0.0.5
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/franka_interface/share/franka_interface/cmake/franka_interfaceConfig-version.cmake

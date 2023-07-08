@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/franka_core_msgs/lib/pkgconfig/franka_core_msgs.pc

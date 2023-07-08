@@ -1,0 +1,5 @@
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_hw/cmake/franka_hwConfig-version.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_hw/cmake/franka_hwConfig.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libfranka_control_services.so
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libfranka_hw.so
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/pkgconfig/franka_hw.pc

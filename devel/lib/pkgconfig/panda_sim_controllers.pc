@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_controllers/lib/pkgconfig/panda_sim_controllers.pc

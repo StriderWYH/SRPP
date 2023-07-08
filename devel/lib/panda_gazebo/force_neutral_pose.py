@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/panda_gazebo/lib/panda_gazebo/force_neutral_pose.py

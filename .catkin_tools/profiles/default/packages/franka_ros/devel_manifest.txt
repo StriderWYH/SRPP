@@ -1,0 +1,2 @@
+franka_ros/franka_ros
+/home/ur3/catkin_FrankaPanda/devel/.private/franka_ros/cmake.lock /home/ur3/catkin_FrankaPanda/devel/./cmake.lock

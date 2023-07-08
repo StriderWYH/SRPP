@@ -1,0 +1,1 @@
+/home/ur3/catkin_FrankaPanda/devel/.private/franka_description/share/franka_description/cmake/franka_descriptionConfig.cmake

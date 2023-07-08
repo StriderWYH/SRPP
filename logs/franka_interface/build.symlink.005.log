@@ -1,0 +1,12 @@
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_interface/cmake/franka_interfaceConfig.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_interface/cmake/franka_interfaceConfig-version.cmake
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libcustom_franka_state_controller.so
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/pkgconfig/franka_interface.pc
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/enable_robot.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/demo_joint_positions_keyboard.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/cmake.lock
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/simple_gripper.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/custom_franka_control_node
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/franka_interface/move_to_neutral.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/python3/dist-packages/franka_dataflow/__init__.py
+Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/python3/dist-packages/franka_interface/__init__.py
