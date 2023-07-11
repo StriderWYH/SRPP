@@ -11,6 +11,7 @@ from project_header import *
 from sac import sac
 import core as core
 from gazebo_env import *
+from gazebo_env_torque import *
 import torch
 from torch.optim import Adam
 
@@ -100,7 +101,8 @@ Program run from here
 """
 def main():
 
-    env = gazebo_env
+    # env = gazebo_env
+    env = FrankaEnv
     hid = 256
     l = 2
     gamma = 0.99

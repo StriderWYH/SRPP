@@ -370,7 +370,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_name', type=str, default='sac')
     args = parser.parse_args()
 
-    from src.lab2pkg_py.scripts.utils.run_utils import setup_logger_kwargs
+    from src.SRPP.scripts.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
     torch.set_num_threads(torch.get_num_threads())
