@@ -47,7 +47,7 @@ class ReplayBuffer:
 def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99,
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000,
-        update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
+        update_after=1000, update_every=50, num_test_episodes=5, max_ep_len=1000,
         logger_kwargs=dict(), save_freq=1):
     """
     Soft Actor-Critic (SAC)
@@ -341,6 +341,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 logger.save_state({'env': env}, None)  # to save the current network model and the env after each epoch
 
             # Test the performance of the deterministic version of the agent.
+
             test_agent()
 
             # Log info about epoch
@@ -370,7 +371,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_name', type=str, default='sac')
     args = parser.parse_args()
 
-    from src.lab2pkg_py.scripts.utils.run_utils import setup_logger_kwargs
+    from src.SRPP.scripts.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
     torch.set_num_threads(torch.get_num_threads())

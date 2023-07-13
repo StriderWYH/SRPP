@@ -8,6 +8,9 @@
 
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs:$CMAKE_PREFIX_PATH"
+export LD_LIBRARY_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs/lib:$LD_LIBRARY_PATH"
+export PKG_CONFIG_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs/lib/pkgconfig:$PKG_CONFIG_PATH"
 export PWD='/home/ur3/catkin_FrankaPanda/build/franka_msgs'
+export PYTHONPATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs/lib/python3/dist-packages:$PYTHONPATH"
 export ROSLISP_PACKAGE_DIRECTORIES="/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
 export ROS_PACKAGE_PATH="/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs:$ROS_PACKAGE_PATH"

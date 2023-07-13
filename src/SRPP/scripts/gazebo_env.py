@@ -72,7 +72,7 @@ class gazebo_env(gym.Env):
         while (rospy.is_shutdown()):
             print("ROS is shutdown!")
         # set to neutral position
-        self.limb.move_to_neutral()
+        self.limb.move_to_neutral() 
 
         # initial position
         self.state = np.array([self.limb._neutral_pose_joints[n] for n in self.limb._joint_names]) # the whole 7 joints
@@ -93,7 +93,7 @@ class gazebo_env(gym.Env):
 
 
 
-    def step(self, action, move=False):
+    def step(self, action, move=True):
         # 接收一个动作，执行这个动作
         # 用来处理状态的转换逻辑
         # 返回动作的回报、下一时刻的状态、以及是否结束当前episode及调试信息

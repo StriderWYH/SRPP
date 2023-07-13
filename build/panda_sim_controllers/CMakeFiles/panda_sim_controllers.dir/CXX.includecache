@@ -874,26 +874,6 @@ pluginlib/class_list_macros.h
 yaml-cpp/yaml.h
 -
 
-/home/ur3/catkin_FrankaPanda/src/panda_simulator/panda_sim_controllers/src/panda_joint_effort_controller.cpp
-panda_sim_controllers/panda_joint_effort_controller.h
--
-pluginlib/class_list_macros.h
--
-
-/home/ur3/catkin_FrankaPanda/src/panda_simulator/panda_sim_controllers/src/panda_joint_position_controller.cpp
-panda_sim_controllers/panda_joint_position_controller.h
--
-angles/angles.h
--
-pluginlib/class_list_macros.h
--
-
-/home/ur3/catkin_FrankaPanda/src/panda_simulator/panda_sim_controllers/src/panda_joint_velocity_controller.cpp
-panda_sim_controllers/panda_joint_velocity_controller.h
--
-pluginlib/class_list_macros.h
--
-
 /home/ur3/catkin_FrankaPanda/src/panda_simulator/panda_sim_controllers/src/panda_position_controller.cpp
 panda_sim_controllers/panda_position_controller.h
 -
@@ -1144,12 +1124,6 @@ ros/message_operations.h
 std_msgs/Header.h
 -
 actionlib_msgs/GoalStatus.h
--
-
-/opt/ros/noetic/include/angles/angles.h
-algorithm
--
-cmath
 -
 
 /opt/ros/noetic/include/class_loader/class_loader.hpp

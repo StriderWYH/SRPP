@@ -24,12 +24,12 @@ add_custom_target(_franka_core_msgs_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg" NAME_WE)
 add_custom_target(_franka_core_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "franka_core_msgs" "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg" "std_msgs/Header:franka_msgs/Errors"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "franka_core_msgs" "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg" "franka_msgs/Errors:std_msgs/Header"
 )
 
 get_filename_component(_filename "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg" NAME_WE)
 add_custom_target(_franka_core_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "franka_core_msgs" "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg" "geometry_msgs/Wrench:geometry_msgs/Vector3:std_msgs/Header:geometry_msgs/WrenchStamped"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "franka_core_msgs" "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg" "geometry_msgs/Wrench:geometry_msgs/WrenchStamped:geometry_msgs/Vector3:std_msgs/Header"
 )
 
 get_filename_component(_filename "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/JointLimits.msg" NAME_WE)
@@ -57,13 +57,13 @@ _generate_msg_cpp(franka_core_msgs
 _generate_msg_cpp(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg"
+  "/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_cpp(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg"
+  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_cpp(franka_core_msgs
@@ -122,13 +122,13 @@ _generate_msg_eus(franka_core_msgs
 _generate_msg_eus(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg"
+  "/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_eus(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg"
+  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_eus(franka_core_msgs
@@ -187,13 +187,13 @@ _generate_msg_lisp(franka_core_msgs
 _generate_msg_lisp(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg"
+  "/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_lisp(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg"
+  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_lisp(franka_core_msgs
@@ -252,13 +252,13 @@ _generate_msg_nodejs(franka_core_msgs
 _generate_msg_nodejs(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg"
+  "/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_nodejs(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg"
+  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_nodejs(franka_core_msgs
@@ -317,13 +317,13 @@ _generate_msg_py(franka_core_msgs
 _generate_msg_py(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/RobotState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg"
+  "/home/ur3/catkin_FrankaPanda/src/franka_ros/franka_msgs/msg/Errors.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_py(franka_core_msgs
   "/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_common/franka_core_msgs/msg/EndPointState.msg"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg"
+  "/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Wrench.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/WrenchStamped.msg;/opt/ros/noetic/share/geometry_msgs/cmake/../msg/Vector3.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/franka_core_msgs
 )
 _generate_msg_py(franka_core_msgs

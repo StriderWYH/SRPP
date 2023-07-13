@@ -1333,8 +1333,8 @@ CMakeFiles/tests.dir/clean:
 # Target rules for target CMakeFiles/franka_gripper_node.dir
 
 # All Build rule for target.
-CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper_generate_messages_cpp.dir/all
 CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper.dir/all
+CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper_generate_messages_cpp.dir/all
 CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper_generate_messages_lisp.dir/all
 CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper_generate_messages_py.dir/all
 CMakeFiles/franka_gripper_node.dir/all: CMakeFiles/franka_gripper_generate_messages_eus.dir/all

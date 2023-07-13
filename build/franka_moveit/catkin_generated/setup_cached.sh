@@ -11,6 +11,6 @@ export CMAKE_PREFIX_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_mov
 export LD_LIBRARY_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_moveit/lib:$LD_LIBRARY_PATH"
 export PKG_CONFIG_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_moveit/lib/pkgconfig:$PKG_CONFIG_PATH"
 export PWD='/home/ur3/catkin_FrankaPanda/build/franka_moveit'
-export PYTHONPATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_moveit/lib/python3/dist-packages:/home/ur3/catkin_FrankaPanda/devel/lib/python3/dist-packages:$PYTHONPATH"
+export PYTHONPATH="/home/ur3/catkin_FrankaPanda/devel/.private/franka_moveit/lib/python3/dist-packages:$PYTHONPATH"
 export ROSLISP_PACKAGE_DIRECTORIES="/home/ur3/catkin_FrankaPanda/devel/.private/franka_moveit/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
 export ROS_PACKAGE_PATH="/home/ur3/catkin_FrankaPanda/src/franka_ros_interface/franka_moveit:$ROS_PACKAGE_PATH"

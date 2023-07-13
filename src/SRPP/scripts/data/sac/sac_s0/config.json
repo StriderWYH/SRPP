@@ -8,12 +8,12 @@
     "actor_critic":	"MLPActorCritic",
     "alpha":	0.2,
     "batch_size":	100,
-    "env_fn":	"gazebo_env",
+    "env_fn":	"FrankaEnv",
     "epochs":	20,
     "exp_name":	"sac",
     "gamma":	0.99,
     "logger":	{
-        "<utils.logx.EpochLogger object at 0x7f364109cd30>":	{
+        "<utils.logx.EpochLogger object at 0x7f98c377b520>":	{
             "epoch_dict":	{},
             "exp_name":	"sac",
             "first_row":	true,
@@ -33,7 +33,7 @@
     },
     "lr":	0.001,
     "max_ep_len":	1000,
-    "num_test_episodes":	10,
+    "num_test_episodes":	5,
     "polyak":	0.995,
     "replay_size":	1000000,
     "save_freq":	1,

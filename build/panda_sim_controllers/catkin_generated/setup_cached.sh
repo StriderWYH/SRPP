@@ -8,6 +8,8 @@
 
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_controllers:$CMAKE_PREFIX_PATH"
+export LD_LIBRARY_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_controllers/lib:$LD_LIBRARY_PATH"
+export PKG_CONFIG_PATH="/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_controllers/lib/pkgconfig:$PKG_CONFIG_PATH"
 export PWD='/home/ur3/catkin_FrankaPanda/build/panda_sim_controllers'
 export ROSLISP_PACKAGE_DIRECTORIES="/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_controllers/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
 export ROS_PACKAGE_PATH="/home/ur3/catkin_FrankaPanda/src/panda_simulator/panda_sim_controllers:$ROS_PACKAGE_PATH"
