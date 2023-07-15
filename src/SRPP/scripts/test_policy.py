@@ -160,7 +160,7 @@ def main():
     env, get_action = load_policy_and_env(fpath,
                                           itr if itr >=0 else 'last',
                                           deterministic)
-    env = gazebo_env()
+    env = FrankaEnv()
     ##print(env)
     run_policy(env, get_action, len, episodes, not(norender))
 

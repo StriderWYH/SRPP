@@ -289,7 +289,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     total_steps = steps_per_epoch * epochs
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
-
+    ep_distance_ret,ep_velocity_ret,ep_orientation_ret,ep_torque_ret = 0,0,0,0
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
         
@@ -302,9 +302,13 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
-        o2, r, d, _ = env.step(a)
+        o2, r, d, info = env.step(a)
         ep_ret += r
         ep_len += 1
+        ep_distance_ret += info['distant_ret']
+        ep_velocity_ret += info['velocity_ret']
+        ep_orientation_ret += info['orientation_ret']
+        ep_torque_ret += info['torque_ret']
 
         # Ignore the "done" signal if it comes from hitting the time
         # horizon (that is, when it's an artificial terminal signal
@@ -322,8 +326,9 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         if d or (ep_len == max_ep_len):
             # print("logger store after done or reaching the max_epoch_length\n")
             logger.store(EpRet=ep_ret, EpLen=ep_len) # to store the result of current epoch
+            logger.store(Ep_dist_Ret=ep_distance_ret, Ep_vel_Ret=ep_velocity_ret, Ep_ori_Ret=ep_orientation_ret, Ep_torq_Ret=ep_torque_ret)
             o, ep_ret, ep_len = env.reset(), 0, 0
-
+            ep_distance_ret, ep_velocity_ret, ep_orientation_ret, ep_torque_ret = 0, 0, 0, 0
         # Update handling
         if t >= update_after and t % update_every == 0:
             for j in range(update_every):
@@ -348,6 +353,10 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('Epoch', epoch)
             logger.log_tabular('EpRet', with_min_and_max=True)
             logger.log_tabular('TestEpRet', with_min_and_max=True)
+            logger.log_tabular('Ep_dist_Ret', with_min_and_max=False)
+            logger.log_tabular('Ep_vel_Ret', with_min_and_max=False)
+            logger.log_tabular('Ep_ori_Ret', with_min_and_max=False)
+            logger.log_tabular('Ep_torq_Ret', with_min_and_max=False)
             logger.log_tabular('EpLen', average_only=True)
             logger.log_tabular('TestEpLen', average_only=True)
             logger.log_tabular('TotalEnvInteracts', t)
