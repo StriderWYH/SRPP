@@ -160,10 +160,10 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     act_limit = env.action_space.high[0]
 
     # 1: Create actor-critic module and target networks
-    ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+    # ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
 
     # 2:Or we can use a pretrained model
-    #ac = torch.load('/home/ur3/catkin_FrankaPanda/src/SRPP/scripts/data/sac/sac_s0/pyt_save/model.pt')
+    ac = torch.load('/home/ur3/catkin_pyfranka/src/SRPP/scripts/data/sac/sac_s0/pyt_save/model.pt')
     #
 
     ac_targ = deepcopy(ac)
