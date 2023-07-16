@@ -1,4 +1,4 @@
-#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+#!/usr/bin/env python3
 import rospy
 import time
 import joblib
@@ -8,8 +8,8 @@ import tensorflow as tf
 import torch
 from utils.logx import EpochLogger
 from utils.logx import restore_tf_graph
-from gazebo_env import gazebo_env
-
+#from gazebo_env import gazebo_env
+from gazebo_env_torque import *
 def load_policy_and_env(fpath, itr='last', deterministic=False):
     """
     Load a policy from save, whether it's TF or PyTorch, along with RL env.
@@ -150,7 +150,7 @@ def main():
     # parser.add_argument('--deterministic', '-d', action='store_true')
     # args = parser.parse_args()
 
-    fpath = 'src/lab2pkg_py/scripts/data/sac/sac_s0'
+    fpath = 'src/SRPP/scripts/data/sac/sac_s0'
     len = 0
     episodes = 10
     norender = True
