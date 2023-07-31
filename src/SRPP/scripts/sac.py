@@ -1,4 +1,4 @@
-#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+#!/home/fred/anaconda3/envs/spinningup/bin/python3
 from copy import deepcopy
 import itertools
 import numpy as np
@@ -16,13 +16,14 @@ class ReplayBuffer:
     A simple FIFO experience replay buffer for SAC agents.
     """
 
-    def __init__(self, obs_dim, act_dim, size):
+    def __init__(self, obs_dim, act_dim, size, device):
         self.obs_buf = np.zeros(core.combined_shape(size, obs_dim), dtype=np.float32)
         self.obs2_buf = np.zeros(core.combined_shape(size, obs_dim), dtype=np.float32)
         self.act_buf = np.zeros(core.combined_shape(size, act_dim), dtype=np.float32)
         self.rew_buf = np.zeros(size, dtype=np.float32)
         self.done_buf = np.zeros(size, dtype=np.float32)
         self.ptr, self.size, self.max_size = 0, 0, size
+        self.device = device
 
     def store(self, obs, act, rew, next_obs, done):
         self.obs_buf[self.ptr] = obs
@@ -35,17 +36,22 @@ class ReplayBuffer:
 
     def sample_batch(self, batch_size=32):
         idxs = np.random.randint(0, self.size, size=batch_size)
-        batch = dict(obs=self.obs_buf[idxs],
-                     obs2=self.obs2_buf[idxs],
-                     act=self.act_buf[idxs],
-                     rew=self.rew_buf[idxs],
-                     done=self.done_buf[idxs])
-        return {k: torch.as_tensor(v, dtype=torch.float32) for k,v in batch.items()}
+        # batch = dict(obs=self.obs_buf[idxs],
+        #              obs2=self.obs2_buf[idxs],
+        #              act=self.act_buf[idxs],
+        #              rew=self.rew_buf[idxs],
+        #              done=self.done_buf[idxs])
+        # return {k: torch.as_tensor(v, dtype=torch.float32) for k,v in batch.items()}
+        return dict(obs =torch.as_tensor(self.obs_buf[idxs],  dtype=torch.float32).to(self.device),
+                    obs2=torch.as_tensor(self.obs2_buf[idxs], dtype=torch.float32).to(self.device),
+                    act =torch.as_tensor(self.act_buf[idxs],  dtype=torch.float32).to(self.device),
+                    rew =torch.as_tensor(self.rew_buf[idxs],  dtype=torch.float32).to(self.device),
+                    done=torch.as_tensor(self.done_buf[idxs], dtype=torch.float32).to(self.device))
 
 
 
 def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
-        steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99,
+        steps_per_epoch=4000, epochs=50, replay_size=int(1e6), gamma=0.99,
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000,
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
         logger_kwargs=dict(), save_freq=1):
@@ -145,9 +151,15 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             the current policy and value function.
 
     """
+    print(torch.cuda.is_available())
+    device = (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
+
 
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals()) # to save the current config of SAC
+
+    if torch.cuda.is_available():
+        logger.log('\nuse GPU')
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -160,13 +172,17 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     act_limit = env.action_space.high[0]
 
     # 1: Create actor-critic module and target networks
-    # ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+    ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
 
     # 2:Or we can use a pretrained model
-    ac = torch.load('/home/ur3/catkin_pyfranka/src/SRPP/scripts/data/sac/sac_s0/pyt_save/model.pt')
+    # ac = torch.load('/home/fred/catkin_pyfranka/src/SRPP/scripts/data/sac/sac_s0/pyt_save/model.pt')
     #
 
     ac_targ = deepcopy(ac)
+
+
+    ac = ac.to(device)
+    ac_targ = ac_targ.to(device)
 
     # Freeze target networks with respect to optimizers (only update via polyak averaging)
     for p in ac_targ.parameters():
@@ -176,7 +192,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     q_params = itertools.chain(ac.q1.parameters(), ac.q2.parameters())
 
     # Experience buffer
-    replay_buffer = ReplayBuffer(obs_dim=obs_dim, act_dim=act_dim, size=replay_size)
+    replay_buffer = ReplayBuffer(obs_dim=obs_dim, act_dim=act_dim, size=replay_size, device=device)
 
     # Count variables (protip: try to get a feel for how different size networks behave!)
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.q1, ac.q2])
@@ -206,9 +222,9 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         loss_q = loss_q1 + loss_q2
 
         # Useful info for logging
-        q_info = dict(Q1Vals=q1.detach().numpy(),
-                      Q2Vals=q2.detach().numpy())
-
+        # q_info = dict(Q1Vals=q1.detach().numpy(),
+        #               Q2Vals=q2.detach().numpy())
+        q_info = dict(Q1Vals=q1.cpu().detach().numpy(), Q2Vals=q2.cpu().detach().numpy())
         return loss_q, q_info
 
     # Set up function for computing SAC pi loss
@@ -223,8 +239,8 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         loss_pi = (alpha * logp_pi - q_pi).mean()
 
         # Useful info for logging
-        pi_info = dict(LogPi=logp_pi.detach().numpy())
-
+        # pi_info = dict(LogPi=logp_pi.detach().numpy())
+        pi_info = dict(LogPi=logp_pi.cpu().detach().numpy())
         return loss_pi, pi_info
 
     # Set up optimizers for policy and q-function
@@ -271,8 +287,11 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 p_targ.data.add_((1 - polyak) * p.data)
 
     def get_action(o, deterministic=False):
-        return ac.act(torch.as_tensor(o, dtype=torch.float32), 
-                      deterministic)
+        o = np.expand_dims(o, axis=0)
+        a = ac.act(torch.as_tensor(o, dtype=torch.float32).to(device), deterministic)
+        return np.squeeze(a, axis=0)
+        # return ac.act(torch.as_tensor(o, dtype=torch.float32), 
+        #               deterministic)
 
     def test_agent():
         for j in range(num_test_episodes):

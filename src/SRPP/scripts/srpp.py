@@ -12,6 +12,7 @@ from sac import sac
 import core as core
 from gazebo_env import *
 from gazebo_env_torque import *
+from gazebo_env_trajectory import *
 import torch
 from torch.optim import Adam
 
@@ -102,12 +103,13 @@ Program run from here
 def main():
 
     # env = gazebo_env
-    env = FrankaEnv
+    # env = FrankaEnv
+    env = trajectoryEnv
     hid = 256
     l = 2
     gamma = 0.99
     seed = 0
-    epochs = 20
+    epochs = 50
     exp_name = 'sac'
 
     from utils.run_utils import setup_logger_kwargs

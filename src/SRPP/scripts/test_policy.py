@@ -1,4 +1,4 @@
-#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+#!/home/fred/anaconda3/envs/spinningup/bin/python3
 import rospy
 import time
 import joblib

@@ -1,4 +1,4 @@
-#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+#!/home/fred/anaconda3/envs/spinningup/bin/python3
 import sys
 import copy
 import time
@@ -8,7 +8,7 @@ import numpy as np
 from project_header import *
 from gym import spaces
 from gym.utils import seeding
-from gym.envs.classic_control import rendering
+# from gym.envs.classic_control import rendering
 import time
 import math
 

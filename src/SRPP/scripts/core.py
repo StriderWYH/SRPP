@@ -1,4 +1,4 @@
-#!/home/ur3/anaconda3/envs/spinningup/bin/python3
+#!/home/fred/anaconda3/envs/spinningup/bin/python3
 import numpy as np
 import scipy.signal
 
@@ -96,4 +96,4 @@ class MLPActorCritic(nn.Module):
     def act(self, obs, deterministic=False):
         with torch.no_grad():
             a, _ = self.pi(obs, deterministic, False)
-            return a.numpy()
+            return a.cpu().numpy()
