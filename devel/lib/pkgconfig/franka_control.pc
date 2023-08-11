@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/franka_control/lib/pkgconfig/franka_control.pc

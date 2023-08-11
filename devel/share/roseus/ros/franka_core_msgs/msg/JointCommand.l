@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/franka_core_msgs/share/roseus/ros/franka_core_msgs/msg/JointCommand.l

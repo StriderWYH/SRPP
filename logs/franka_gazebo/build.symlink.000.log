@@ -1,5 +1,0 @@
-Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_gazebo/cmake/franka_gazeboConfig-version.cmake
-Symlinking /home/ur3/catkin_FrankaPanda/devel/share/franka_gazebo/cmake/franka_gazeboConfig.cmake
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libfranka_hw_sim.so
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/libfranka_gripper_sim.so
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/pkgconfig/franka_gazebo.pc

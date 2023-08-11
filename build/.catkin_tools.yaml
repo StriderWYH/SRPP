@@ -1,6 +1,0 @@
-devel_space: /home/ur3/catkin_FrankaPanda/devel
-install: false
-install_space: /home/ur3/catkin_FrankaPanda/install
-profile: default
-source_space: /home/ur3/catkin_FrankaPanda/src
-workspace: /home/ur3/catkin_FrankaPanda

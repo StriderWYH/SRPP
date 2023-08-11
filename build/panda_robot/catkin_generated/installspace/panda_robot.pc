@@ -1,8 +1,0 @@
-prefix=/home/ur3/catkin_FrankaPanda/install
-
-Name: panda_robot
-Description: Description of panda_robot
-Version: 0.0.5
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

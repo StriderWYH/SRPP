@@ -1,7 +1,0 @@
-Symlinking /home/ur3/catkin_FrankaPanda/devel/share/panda_robot/cmake/panda_robotConfig-version.cmake
-Symlinking /home/ur3/catkin_FrankaPanda/devel/share/panda_robot/cmake/panda_robotConfig.cmake
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/pkgconfig/panda_robot.pc
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/panda_robot/cmake.lock
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/panda_robot/demo_endeffector_keyboard.py
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/panda_robot/panda_robot.py
-Symlinking /home/ur3/catkin_FrankaPanda/devel/lib/python3/dist-packages/panda_robot/__init__.py

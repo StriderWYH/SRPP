@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/panda_sim_custom_action_server/lib/panda_sim_custom_action_server/start_joint_trajectory_server.py

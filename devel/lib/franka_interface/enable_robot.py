@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/franka_interface/lib/franka_interface/enable_robot.py

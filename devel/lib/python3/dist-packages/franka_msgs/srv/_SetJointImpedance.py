@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/franka_msgs/lib/python3/dist-packages/franka_msgs/srv/_SetJointImpedance.py

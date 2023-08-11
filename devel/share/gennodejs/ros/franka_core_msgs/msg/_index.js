@@ -1,1 +1,0 @@
-/home/ur3/catkin_FrankaPanda/devel/.private/franka_core_msgs/share/gennodejs/ros/franka_core_msgs/msg/_index.js
