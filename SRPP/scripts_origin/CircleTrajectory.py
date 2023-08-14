@@ -2,13 +2,13 @@
 import sys
 import copy
 import time
-
-import gymnasium
 import rospy
+import gym
 import numpy as np
-from gymnasium import spaces
-from gymnasium.utils import seeding
-# from gymnasium.envs.classic_control import rendering
+from project_header import *
+from gym import spaces
+from gym.utils import seeding
+# from gym.envs.classic_control import rendering
 from std_srvs.srv import Empty
 import quaternion
 
@@ -30,14 +30,14 @@ obs_angle_high_bd = np.array([2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2
 target_obj = np.array([300, 50, 150])  # millimeter
 PI = np.pi
 
-class PretrainedEnv3(gymnasium.Env):
+class CircleTrajectory(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 2
     }
 
-    def __init__(self, thr=20, weight=0.00069, vel=4.0, accel=4.0,length =60):
-        super().__init__()
+    def __init__(self, thr=20, weight=0.00069, vel=4.0, accel=4.0,length =79,gamma =0.99):
+
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)  # 恢复仿真
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)  # 暂停仿真
         self.reset_proxy = rospy.ServiceProxy("/gazebo/reset_world", Empty)
@@ -95,23 +95,27 @@ class PretrainedEnv3(gymnasium.Env):
 
         self.vel = vel
         self.accel = accel
+        self.gamma = gamma
 
     ### The workspace of the robot arm is 855mm
     # return the tuple (sample Point, sample angle), each has two index, one for start, one for target
-    def workSpaceInit(self, length=60, delta_y = 5):
+    def workSpaceInit(self, length=40, delta_y = 5):
         self.samplePoint = []  # millimeter
         self.sampleAngle = []
         self.ck_point_num = length
-        self.target_velocity = np.array([0,0.001*delta_y/(time_delta*3)*0.001,0])
         for t in range(0, length+1):
-            self.samplePoint.append(np.array([500, -390 + delta_y * t, 400]))
+            r = 300
+            x = r*np.cos(0.025*PI*t) + r + 100
+            y = r*np.sin(0.025*PI*t)
+            self.samplePoint.append(np.array([x, y, 400]))
             temp_check = self.limb.inverse_kinematics(self.samplePoint[t] / 1000,
                                                       self.target_orientation)
-            assert temp_check[0], (f"position {t} has no inverse kinematics")
+            assert temp_check[0], "position t has no inverse kinematics"
             self.sampleAngle.append(temp_check[1])
         # print("\n show time: \n")
         # for t in range(0, length+1):
         #     self.limb.exec_position_cmd(self.sampleAngle[t])  # move to the neutral position
+        #     print(self.sampleAngle[t])
         #     time.sleep(0.5)
         return
 
@@ -125,9 +129,10 @@ class PretrainedEnv3(gymnasium.Env):
         AnglePair.append(self.sampleAngle[(order + 1)])
         return (PointPair, AnglePair)
 
-    def reset(self, seed=None, options=None,startstate=None):
+    def reset(self, startstate=None):
         self.freeze_step = 0
         self.freeze_pos_step = 0
+        self.reward_sum = 0
         print("checkpoint this round is:", self.count_checkpoint)
         # print("count done is:", self.count_done, "\n")
         self.count_checkpoint = 0
@@ -169,6 +174,7 @@ class PretrainedEnv3(gymnasium.Env):
         self.linear_vel = self.limb.endpoint_velocity()['linear']
         self.ori_loss = 0
         self.pre_torque_state = self.torque_state
+        self.target_velocity = 0.001*(self.target_xyz - self.state_xyz)/time_delta
         temp = [
                 self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
                 self.state_orientation.x, self.state_orientation.y,
@@ -185,13 +191,7 @@ class PretrainedEnv3(gymnasium.Env):
         # 返回初始状态
         # print(self.state)
         # print("\n")
-        info = {
-            'distance_error': 0,
-            'target_position': self.target_xyz,
-            'current_position': self.state_xyz,
-            'current_obs': self.state
-        }
-        return self.state,info
+        return self.state
 
     def update_robot_state(self):
 
@@ -232,10 +232,9 @@ class PretrainedEnv3(gymnasium.Env):
         # print("\n")
         temp_torque = self.Compute_torque_action(action)
         now_torque = self.torque_state + temp_torque  # renormalize
-        print("temp_torque is:", temp_torque)
-        # print(now_torque)
-        # print("\n")
-        # print(now_torque)
+
+        print("now_torque is :")
+        print(now_torque)
         if self.torque_space.contains(now_torque):
             self.freeze_step = 0
             self.pre_torque_state = self.torque_state
@@ -245,9 +244,9 @@ class PretrainedEnv3(gymnasium.Env):
         else:
             self.freeze_step += 1
             if self.freeze_step >= 10:
-                reward -= 10
+                reward += self.reward_sum if self.reward_sum <-50 else -50
                 print("freeze step reset \n")
-                return self.state, reward, True,False, {}
+                return self.state, reward, True, {}
             self.pre_torque_state = self.torque_state
             self.limb.exec_torque_cmd(self.torque_state)
             reward -= 5
@@ -282,19 +281,18 @@ class PretrainedEnv3(gymnasium.Env):
         reward_delta, ori_loss_abs, joint_state_loss = self._compute_reward()
         reward += reward_delta
 
-        joint_state_difs = self.joint_state - self.target_joint_state
-        print("joint_state_difs are:", joint_state_difs)
+        print("joint_state_error is:", self.joint_state_error)
         dif_count = 0
-        for dif in  joint_state_difs:
+        for dif in  self.joint_state_error:
             dif_count += 1
             if abs(dif) > 0.75*PI and dif_count <=6 : # the last joint is not important
-                # print(self.joint_state_error)
-                reward -= 50
-                print("dif torque reset \n")
-                return self.state, reward, True, False,{}
-        # print(self.state_xyz)
-        # print("\n")
-
+                print(self.joint_state_error)
+                reward_m = 0.5*self.reward_sum
+                reward += reward_m if reward_m <-50 else -50
+                print("\n dif torque reset ")
+                print("target joint state is :", self.target_joint_state)
+                print("reward_m is:", reward_m)
+                return self.state, reward, True, {}
 
         if self.limb.in_safe_state() and self.check_xyz(self.state_xyz):  # check whether the robot is fine
             distance = np.linalg.norm(self.state_xyz - self.target_xyz)  # Euclidean distance
@@ -318,7 +316,7 @@ class PretrainedEnv3(gymnasium.Env):
         else:
             print("not safe state\n")
             done = True
-            reward -= -50
+            reward += self.reward_sum if self.reward_sum <-50 else -50
             # reinitialize the world
 
         info = {
@@ -328,8 +326,9 @@ class PretrainedEnv3(gymnasium.Env):
             'current_obs': self.state
         }
         print("reward is :", reward, "\n")
+        self.reward_sum += reward
         # 返回下一个状态、奖励、是否终止以及其他信息
-        return self.state, reward, done,False, info
+        return self.state, reward, done, info
 
     def render(self):
         # 可选的渲染方法
@@ -340,7 +339,7 @@ class PretrainedEnv3(gymnasium.Env):
         distance = np.linalg.norm(self.state_xyz - self.target_xyz) / 50
         # distance = np.linalg.norm(self.state_xyz - self.target_xyz)
         reward = -distance  # 使用负距离作为奖励的一部分，目标是最小化距离
-        print("pos reward:")
+        print("distance reward:")
         print(-distance)
         # print("\n")
         # 加入关节速度奖励部分
@@ -353,7 +352,7 @@ class PretrainedEnv3(gymnasium.Env):
         # we need to give some constraint to the orientation
         delta_ori = self.quatdiff_in_euler(self.state_orientation, self.target_orientation) * 10
         ori_loss = -np.linalg.norm(delta_ori,ord=1)  # every time 8
-        print("angle reward:")
+        print("orientation reward:")
         print(ori_loss)
         # print("\n")
         reward += ori_loss
@@ -366,8 +365,8 @@ class PretrainedEnv3(gymnasium.Env):
         # # print("\n")
 
 
-        joint_state_loss = -np.linalg.norm(self.joint_state_error[0:5],ord=1)
-        print("joint loss:\n", joint_state_loss)
+        joint_state_loss = -np.linalg.norm(self.joint_state_error[0:5],ord=1)*5
+        print("joint reward:\n", joint_state_loss)
         reward += joint_state_loss
 
         return reward, -ori_loss, joint_state_loss

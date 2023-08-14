@@ -15,6 +15,7 @@ from src.SRPP.scripts.utils.logx import restore_tf_graph
 # from gazebo_env_torque import *
 from baseline2 import *
 from baseline3 import *
+from CircleTrajectory import *
 from src.SRPP.scripts.gazebo_env_trajectory import *
 
 def load_policy_and_env(fpath, itr='last', deterministic=False):
@@ -169,7 +170,8 @@ def main():
                                           deterministic)
     # env = trajectoryEnv()
     # env = PretrainedEnv2()
-    env = PretrainedEnv3()
+    # env = PretrainedEnv3()
+    env = CircleTrajectory()
     ##print(env)
     run_policy(env, get_action, max_ep_len, episodes, not (norender))
 
