@@ -37,13 +37,15 @@ class ErrorBuffer:
     A simple FIFO experience replay buffer for error values.
     """
 
-    def __init__(self, size):
+    def __init__(self, size, count_max=1):
         self.d_error_buf = np.zeros(size, dtype=np.float32)
         self.j_error__buf = np.zeros(size, dtype=np.float32)
         self.ori_error_buf = np.zeros(size, dtype=np.float32)
         self.v_error_buf = np.zeros(size, dtype=np.float32)
         self.ptr, self.size, self.max_size = 0, 0, size
         self.reach_full = False
+        self.count = 0
+        self.count_max = count_max
 
     def store(self, d_error, j_error, ori_error, v_error):
         self.d_error_buf[self.ptr] = d_error
@@ -52,8 +54,9 @@ class ErrorBuffer:
         self.v_error_buf[self.ptr] = v_error
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
-        if self.ptr == self.max_size - 1:
-            self.reach_full = True
+
+    def error_step(self):
+        self.count += 1
 
     def mean_error(self):
         d_mean = self.d_error_buf.mean()
@@ -68,6 +71,9 @@ class ErrorBuffer:
     def flag_reset(self):
         self.reach_full = False
 
+    def flag_set(self):
+        self.reach_full = True
+
 
 class Line4(gymnasium.Env):
     metadata = {
@@ -77,16 +83,14 @@ class Line4(gymnasium.Env):
 
     # thr_dist(mm), thr_jt(rad), thr_ori(), thr_vel(m/s)
     def __init__(self, thr_dist=10, thr_jt=0.2 * PI, thr_ori=0.08, thr_vel=0.01, weight=0.00069, vel=4.0, accel=4.0,
-                 length=160):
+                 length=160, update_k_everysteps=40000):
 
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)  # 恢复仿真
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)  # 暂停仿真
         self.reset_proxy = rospy.ServiceProxy("/gazebo/reset_world", Empty)
 
         # 定义观测空间
-        self.freeze_step = 0
         self.torque_space = spaces.Box(low=obs_torque_low_bd, high=obs_torque_high_bd, dtype=np.float64)
-
         self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(48,), dtype=np.float64)
         # 定义动作空间
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(7,), dtype=np.float32)  # temporary action torque
@@ -95,10 +99,52 @@ class Line4(gymnasium.Env):
         rospy.init_node('sacnode')
 
         self.limb = PandaArm()
-
         while (rospy.is_shutdown()):
             print("ROS is shutdown!")
+        self.target_xyz = None
+        self.target_orientation = None
+        self.state_orientation = None
+        self.state_xyz = None
+        self.last_xyz = None
+        self.freeze_step = 0
+        self.ori_loss = 0
+        self.state = None
+        self.joint_state_error = None
+        self.pre_joint_state = None
+        self.pre_torque_state = None
+        self.init_joint_state = None
+        self.joint_state = None
+        self.startpoint = None
+        self.freeze_pos_step = None
+        self.rms_error = None
+        self.time = None
+        self.target_velocity = None
+        self.ck_point_num = None
+        self.sampleAngle = None
+        self.samplePoint = None
+        self.target_joint_state = None
+        self.linear_vel = None
+        self.torque_state = None
+        self.count_checkpoint = 0
+        self.count_done = 0
+        error_buf_size = length * 20
+        self.error_buf = ErrorBuffer(error_buf_size, update_k_everysteps)
+        self.thr = np.array([thr_dist, thr_jt, thr_ori, thr_vel])  # hyperparameter
+        self.weight = weight  # hyperparameter
+        self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 0.8, 3, 3  # initial value of kernel parameter
+        self.seed()
+        self.vel = vel
+        self.accel = accel
+        self.traj_length = length
 
+        ##################################################################
+        # 初始化环境
+        self.workSpaceInit(length=length)
+        self.reset()
+
+    # The workspace of the robot arm is 855mm
+    # return the tuple (sample Point, sample angle), each has two index, one for start, one for target
+    def workSpaceInit(self, length=60, delta_y=5):
         # move to the neutral pose
         joint_state = np.array(
             [self.limb._neutral_pose_joints[n] for n in self.limb._joint_names])  # the whole 7 joints
@@ -107,46 +153,12 @@ class Line4(gymnasium.Env):
         time.sleep(2.0)
         self.target_orientation = self.limb.endpoint_pose()['orientation']  # this is am array of type quaternion
         print("target orientation is :", self.target_orientation, "\n")
-        # alter_joint_state = joint_state + np.array([0,0,0,0,0,0,0.5*PI])
-        # print("alterjoint state is :", alter_joint_state)
-        # self.limb.exec_position_cmd(alter_joint_state)
-        # time.sleep(2.0)
-        # test_orientation = self.limb.endpoint_pose()['orientation']
-        # print("test orientation is :", test_orientation, "\n")
-        self.ori_loss = 0
-        ##################################################################
-        self.workSpaceInit(length=length)
-        joint_state = np.array(
-            [self.limb._neutral_pose_joints[n] for n in self.limb._joint_names])  # the whole 7 joints
-        self.limb.exec_position_cmd(joint_state)  # move to the neutral position
-        time.sleep(2.0)
-        self.count_checkpoint = 0
-        self.count_done = 0
-        # 初始化环境
-        self.reset()
-        error_buf_size = length * 90
-        self.error_buf = ErrorBuffer(error_buf_size)
-        # print(self.state_orientation)
-        self.target_xyz = target_obj  # target xyz position
-        self.thr = np.array([thr_dist, thr_jt, thr_ori, thr_vel])  # hyperparameter
-        self.weight = weight  # hyperparameter
 
-        self.count = 0
-
-        self.seed()
-
-        self.vel = vel
-        self.accel = accel
-        self.traj_length = length
-
-    ### The workspace of the robot arm is 855mm
-    # return the tuple (sample Point, sample angle), each has two index, one for start, one for target
-    def workSpaceInit(self, length=60, delta_y = 5):
         self.samplePoint = []  # millimeter
         self.sampleAngle = []
         self.ck_point_num = length
-        self.target_velocity = np.array([0,0.001*delta_y/(time_delta),0]) # m/s
-        for t in range(0, length+1):
+        self.target_velocity = np.array([0, 0.001 * delta_y / time_delta, 0])  # m/s
+        for t in range(0, length + 1):
             self.samplePoint.append(np.array([500, -390 + delta_y * t, 400]))
             temp_check = self.limb.inverse_kinematics(self.samplePoint[t] / 1000,
                                                       self.target_orientation)
@@ -156,9 +168,13 @@ class Line4(gymnasium.Env):
         # for t in range(0, length+1):
         #     self.limb.exec_position_cmd(self.sampleAngle[t])  # move to the neutral position
         #     time.sleep(0.5)
+        # joint_state = np.array(
+        #     [self.limb._neutral_pose_joints[n] for n in self.limb._joint_names])  # the whole 7 joints
+        # self.limb.exec_position_cmd(joint_state)  # move to the neutral position
+        # time.sleep(2.0)
         return
 
-    def getSelectedPointInLine(self,order=0):
+    def getSelectedPointInLine(self, order=0):
         # choice = random.choice(range(0,length))
         PointPair = []
         AnglePair = []
@@ -166,11 +182,12 @@ class Line4(gymnasium.Env):
         AnglePair.append(self.sampleAngle[order])
         PointPair.append(self.samplePoint[(order + 1)])
         AnglePair.append(self.sampleAngle[(order + 1)])
-        return (PointPair, AnglePair)
+        return PointPair, AnglePair
 
-    def reset(self, seed=None, options=None,startstate=None):
+    def reset(self, seed=None, options=None, startstate=None):
         self.freeze_step = 0
         self.freeze_pos_step = 0
+        print("last turn's rms_error:", self.rms_error/self.time)
         self.rms_error = 0
         print("checkpoint this round is:", self.count_checkpoint)
         # print("count done is:", self.count_done, "\n")
@@ -215,23 +232,23 @@ class Line4(gymnasium.Env):
         self.ori_loss = 0
         self.pre_torque_state = self.torque_state
         temp = [
-                self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
-                self.state_orientation.x, self.state_orientation.y,
-                self.state_orientation.z, self.state_orientation.w
-                ]
+            self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
+            self.state_orientation.x, self.state_orientation.y,
+            self.state_orientation.z, self.state_orientation.w
+        ]
         # print("torque_state is:", self.torque_state/50)
         # print("pre_joint_state is:", self.pre_joint_state / PI)
         # print("target_joint_state is:", self.target_joint_state/PI)
         alter_torque_state = self.Compute_torque_state(self.torque_state)
         alter_pre_torque_state = self.Compute_torque_state(self.pre_torque_state)
-        state = np.hstack((self.joint_state/PI,self.target_joint_state/PI,self.joint_state_error/PI,
-                           alter_torque_state,alter_pre_torque_state,
-                           self.state_xyz/1000, self.target_xyz/1000))
+        state = np.hstack((self.joint_state / PI, self.target_joint_state / PI, self.joint_state_error / PI,
+                           alter_torque_state, alter_pre_torque_state,
+                           self.state_xyz / 1000, self.target_xyz / 1000))
         self.state = np.hstack((state, temp))
         # 返回初始状态
         # print(self.state)
         # print("\n")
-        return self.state,{}
+        return self.state, {}
 
     def update_robot_state(self):
 
@@ -243,7 +260,7 @@ class Line4(gymnasium.Env):
         self.state_xyz = 1000 * self.limb.endpoint_pose()['position']
         self.state_orientation = self.limb.endpoint_pose()['orientation']  # this is an array of type quaternion
         self.linear_vel = self.limb.endpoint_velocity()['linear']
-        print("Linear velocity is: ", self.linear_vel,"\n")
+        # print("Linear velocity is: ", self.linear_vel, "\n")
         sample = self.trajectory()
         # print("sample is :", sample)
         self.target_xyz = sample[0]
@@ -253,13 +270,13 @@ class Line4(gymnasium.Env):
         alter_pre_torque_state = self.Compute_torque_state(self.pre_torque_state)
         # print("alter_torque_state is:", alter_torque_state)
         temp = [
-            self.linear_vel[0] , self.linear_vel[1] , self.linear_vel[2] ,
+            self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
             self.state_orientation.x, self.state_orientation.y,
             self.state_orientation.z, self.state_orientation.w
         ]
-        state = np.hstack((self.joint_state/PI, self.target_joint_state/PI, self.joint_state_error/PI,
-                           alter_torque_state,alter_pre_torque_state,
-                           self.state_xyz/1000, self.target_xyz/1000))
+        state = np.hstack((self.joint_state / PI, self.target_joint_state / PI, self.joint_state_error / PI,
+                           alter_torque_state, alter_pre_torque_state,
+                           self.state_xyz / 1000, self.target_xyz / 1000))
         self.state = np.hstack((state, temp))
 
     def step(self, action, move=True):
@@ -269,9 +286,9 @@ class Line4(gymnasium.Env):
         reward = 0
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         temp_torque = self.Compute_torque_action(action)
-        print("temp_torque is:", temp_torque)
+        # print("temp_torque is:", temp_torque)
         now_torque = self.torque_state + temp_torque  # renormalize
-        print("now torque_state is:", now_torque)
+        # print("now torque_state is:", now_torque)
 
         if self.torque_space.contains(now_torque):
             self.freeze_step = 0
@@ -284,20 +301,21 @@ class Line4(gymnasium.Env):
             if self.freeze_step >= 10:
                 reward -= 5
                 print("freeze step reset \n")
-                return self.state, reward, True, False,{}
+                self.error_buf.error_step()
+                return self.state, reward, True, False, {}
             self.pre_torque_state = self.torque_state
             self.limb.exec_torque_cmd(self.torque_state)
             reward -= 5
 
-    # 首先unpause，发布消息后，开始仿真
+        # 首先unpause，发布消息后，开始仿真
         rospy.wait_for_service("/gazebo/unpause_physics")
         try:
             self.unpause()
         except (rospy.ServiceException) as e:
             print("/gazebo/unpause_physics service call failed")
-    # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
+        # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
         time.sleep(time_delta)
-    # 然后我们停止仿真，开始观测目前的状态
+        # 然后我们停止仿真，开始观测目前的状态
         rospy.wait_for_service("/gazebo/pause_physics")
         try:
             pass
@@ -305,22 +323,21 @@ class Line4(gymnasium.Env):
         except (rospy.ServiceException) as e:
             print("/gazebo/pause_physics service call failed")
 
-    # update  the robot state
+        # update  the robot state
         self.update_robot_state()
 
-
-    # 计算奖励
+        # 计算奖励
         reward_delta = self._compute_reward()
         reward += reward_delta
 
         joint_state_difs = self.joint_state - self.target_joint_state
-        print("joint_state_difs are:", joint_state_difs)
+        # print("joint_state_difs are:", joint_state_difs)
         dif_count = 0
         for dif in joint_state_difs:
             dif_count += 1
             if abs(dif) > 0.75 * PI and dif_count <= 6:  # the last joint is not important
                 # print(self.joint_state_error)
-                reward -= self.time if self.time<=10 else 10
+                reward -= self.time if self.time <= 10 else 10
                 print("dif torque reset \n")
                 print("reward is :", reward, "\n")
                 return self.state, reward, True, False, {}
@@ -333,7 +350,7 @@ class Line4(gymnasium.Env):
                 self.count_checkpoint += 1
                 if time_d >= self.ck_point_num:
                     done = True
-                    reward += 10+self.count_checkpoint
+                    reward += 10 + self.count_checkpoint
                     self.count_done += 1
                 else:
                     done = False
@@ -359,37 +376,35 @@ class Line4(gymnasium.Env):
         }
         print("reward in sum of this step is :", reward, "\n")
         # 返回下一个状态、奖励、是否终止以及其他信息
-        return self.state, reward, done, False,info
-
-
+        return self.state, reward, done, False, info
 
     def render(self):
         # 可选的渲染方法
         pass
 
     def _compute_reward(self, w_dist=0.4, w_joint=0.3, w_ori=0.2, w_vel=0.1):
-        l_d, l_j, l_ori, l_v = 3.6, 0.8, 3, 3
-        # l_d, l_j, l_ori, l_v = 15, 3, 4.5, 3.5 # initial hyperparameter
-        # l_d, l_j, l_ori, l_v = 20, 5, 6, 5
         reward = 0
-
+        print("l_d is", self.l_d)
+        print("l_j is", self.l_j)
+        print("l_ori is", self.l_ori)
+        print("l_v is", self.l_v)
         if self.error_buf.at_brim():
             d_mean, j_mean, ori_mean, v_mean = self.error_buf.mean_error()
             l_d_new = kl_05 / d_mean
             l_j_new = kl_05 / j_mean
             l_ori_new = kl_05 / ori_mean
             l_v_new = kl_05 / v_mean
-            l_d = l_d_new if l_d_new > l_d else l_d
-            l_j = l_j_new if l_j_new > l_j else l_j
-            l_ori = l_ori_new if l_ori_new > l_ori else l_ori
-            l_v = l_v_new if l_v_new > l_v else l_v
+            self.l_d = l_d_new if l_d_new > self.l_d else self.l_d
+            self.l_j = l_j_new if l_j_new > self.l_j else self.l_j
+            self.l_ori = l_ori_new if l_ori_new > self.l_ori else self.l_ori
+            self.l_v = l_v_new if l_v_new > self.l_v else self.l_v
             self.error_buf.flag_reset()
 
         # 根据末端执行器位置与目标位置之间的距离计算惩罚
         d_error = np.linalg.norm((self.state_xyz - self.target_xyz) / 1000)
         x_d = d_error
-        d_loss = -1 + 2 / (
-                np.exp(x_d * l_d) + np.exp(-1 * x_d * l_d))  # use a logistic smooth kernel function here, in [-1,0]
+        d_loss = -1 + 2 / (np.exp(x_d * self.l_d) + np.exp(
+            -1 * x_d * self.l_d))  # use a logistic smooth kernel function here, in [-1,0]
         reward += w_dist * d_loss
         print("dis reward:", d_loss)
         self.rms_error += (d_error * 1000) ** 2
@@ -397,7 +412,7 @@ class Line4(gymnasium.Env):
         # 角度惩罚
         joint_error = np.linalg.norm(self.joint_state_error[0:5], ord=1)
         x_j = joint_error
-        j_loss = -1 + 2 / (np.exp(x_j * l_j) + np.exp(-1 * x_j * l_j))
+        j_loss = -1 + 2 / (np.exp(x_j * self.l_j) + np.exp(-1 * x_j * self.l_j))
         print("joint reward:", j_loss)
         reward += w_joint * j_loss
 
@@ -405,7 +420,7 @@ class Line4(gymnasium.Env):
         delta_ori = self.quatdiff_in_euler(self.state_orientation, self.target_orientation)
         ori_error = np.linalg.norm(delta_ori, ord=1)
         x_ori = ori_error
-        ori_loss = -1 + 2 / (np.exp(x_ori * l_ori) + np.exp(-1 * x_ori * l_ori))
+        ori_loss = -1 + 2 / (np.exp(x_ori * self.l_ori) + np.exp(-1 * x_ori * self.l_ori))
         print("ori reward:", ori_loss)
         reward += w_ori * ori_loss
 
@@ -414,7 +429,7 @@ class Line4(gymnasium.Env):
         if 2 < self.time < self.traj_length - 2:
             vel_error = np.linalg.norm(self.linear_vel - self.target_velocity, ord=1)
             x_v = vel_error
-            v_loss = -1 + 2 / (np.exp(x_v * l_v) + np.exp(-1 * x_v * l_v))
+            v_loss = -1 + 2 / (np.exp(x_v * self.l_v) + np.exp(-1 * x_v * self.l_v))
             self.error_buf.store(d_error, joint_error, ori_error, vel_error)
         else:
             reward = reward / (w_dist + w_joint + w_ori)
@@ -445,25 +460,25 @@ class Line4(gymnasium.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def trajectory(self, backtrace = 0):
+    def trajectory(self, backtrace=0):
         time_d = self.time
         if time_d <= self.ck_point_num:
             time = time_d - backtrace
         else:
             time = self.ck_point_num - backtrace
-        return (self.samplePoint[time],self.sampleAngle[time]) # Attention here! This is taken in millimeter
+        return (self.samplePoint[time], self.sampleAngle[time])  # Attention here! This is taken in millimeter
 
-    def Compute_torque_state(self,torque):
-        torque_1234 = np.array([torque[0],torque[1],torque[2],torque[3]]) / 50
-        torque_567 = np.array([torque[4],torque[5],torque[6]]) /10
+    def Compute_torque_state(self, torque):
+        torque_1234 = np.array([torque[0], torque[1], torque[2], torque[3]]) / 50
+        torque_567 = np.array([torque[4], torque[5], torque[6]]) / 10
 
-        return np.hstack((torque_1234,torque_567))
+        return np.hstack((torque_1234, torque_567))
 
-    def Compute_torque_action(self,torque):
-        torque_1234 = np.array([torque[0],torque[1],torque[2],torque[3]]) *5
-        torque_567 = np.array([torque[4],torque[5],torque[6]])
+    def Compute_torque_action(self, torque):
+        torque_1234 = np.array([torque[0], torque[1], torque[2], torque[3]]) * 5
+        torque_567 = np.array([torque[4], torque[5], torque[6]])
 
-        return np.hstack((torque_1234,torque_567))
+        return np.hstack((torque_1234, torque_567))
 
     @staticmethod
     def check_xyz(xyz):

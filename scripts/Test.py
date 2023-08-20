@@ -1,25 +1,64 @@
-import gymnasium as gym
+#!/usr/bin/python3
+import sys
 
+sys.path.append("/home/wyh/SRPP_franka/src/SRPP/scripts")
+sys.path.append("/home/wyh/SRPP_franka/src/SRPP/scripts/stable_baselines3")
+print(sys.path)
+import copy
+import time
+import rospy
+import numpy as np
+from baseline3 import *
+from baseline4 import *
+import torch
+from torch.optim import Adam
+
+from panda_robot import PandaArm
+from franka_dataflow.getch import getch
+from future.utils import viewitems
 from stable_baselines3 import SAC
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.noise import NormalActionNoise
+from stable_baselines3.common.evaluation import evaluate_policy
+
+"""
+Program run from here
+"""
+
 
 def main():
-    env = gym.make("Pendulum-v1", render_mode="human")
+    steps_every_epoch = 4000
+    epochs = 50
+    total_steps = steps_every_epoch * epochs
+    k_update_times = 10
+    update_k_everysteps = int(total_steps / k_update_times)
+    save_frequency = update_k_everysteps
+    eval_freqency = steps_every_epoch
 
-    model = SAC("MlpPolicy", env, verbose=1,tensorboard_log="./sac_pendulum-v1_tensorboard/",
-                _init_setup_model=True)
-    model.learn(total_timesteps=10000, log_interval=4,tb_log_name="first_run")
-    # model.save("sac_pendulum")
+    env = Line4(update_k_everysteps=update_k_everysteps)
+    # Check the validation of the customized env
+    check_env(env, warn=True, skip_render_check=True)
 
-    # del model # remove to demonstrate saving and loading
+    model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_model" + f"_{11}", env=env)
+    episode_rewards, episode_lengths = evaluate_policy(
+        model,
+        env,
+        n_eval_episodes=10,
+        render=False,
+        deterministic=True,
+        return_episode_rewards=True,
+        warn=True,
+        callback=None
+    )
+    print("episode_rewards:", episode_rewards)
+    print("episode_lengths", episode_lengths)
 
-    model = SAC.load("sac_pendulum")
-
-    obs, info = env.reset()
-    while True:
-        action, _states = model.predict(obs, deterministic=True)
-        obs, reward, terminated,_,info = env.step(action)
-        if terminated :
-            obs, info = env.reset()
 
 if __name__ == '__main__':
-    main()
+
+    try:
+        main()
+    # When Ctrl+C is executed, it catches the exception
+    except rospy.ROSInterruptException:
+        pass
