@@ -58,7 +58,7 @@ class ErrorBuffer:
         self.count = 0
 
     def store(self, ord, d_error, j_error, ori_error, v_error):
-        zone_ord = (ord+1) // self.frag_point_num
+        zone_ord = ord // self.frag_point_num
         assert 0 <= zone_ord < self.zone_num, "zone ord exceed the range"
         self.d_error_buf[zone_ord, self.ptr] = d_error
         self.j_error_buf[zone_ord, self.ptr] = j_error
@@ -71,7 +71,7 @@ class ErrorBuffer:
         self.count += 1
 
     def mean_error(self, ord):
-        zone_ord = (ord + 1) // self.frag_point_num
+        zone_ord = ord // self.frag_point_num
         d_mean = self.d_error_buf[zone_ord].mean()
         j_mean = self.j_error_buf[zone_ord].mean()
         ori_mean = self.ori_error_buf[zone_ord].mean()
@@ -79,11 +79,11 @@ class ErrorBuffer:
         return d_mean, j_mean, ori_mean, v_mean
 
     def at_brim(self, ord):
-        zone_ord = (ord + 1) // self.frag_point_num
+        zone_ord = ord // self.frag_point_num
         return self.reach_full[zone_ord]
 
     def flag_reset(self, ord):
-        zone_ord = (ord + 1) // self.frag_point_num
+        zone_ord = ord // self.frag_point_num
         self.reach_full[zone_ord] = False
 
     def flag_set(self):
@@ -187,7 +187,7 @@ class CircleTrajectory(gymnasium.Env):
         self.l_ori[3] = 3.45
         self.l_v[3] = 3.365036
 
-    def workSpaceInit(self, length=60, delta_y=5):
+    def workSpaceInit(self, length, delta_y=5):
         """
           The workspace of the robot arm is 855mm
           return the tuple (sample Point, sample angle), each has two index, one for start, one for target
@@ -408,7 +408,7 @@ class CircleTrajectory(gymnasium.Env):
                     done = False
                     reward += 1
             else:
-                if time_d <= self.ck_point_num:
+                if time_d < self.ck_point_num:
                     done = False
                 else:
                     reward -= 1
@@ -443,14 +443,14 @@ class CircleTrajectory(gymnasium.Env):
             l_j_new = kl_05 / j_mean
             l_ori_new = kl_05 / ori_mean
             l_v_new = kl_05 / v_mean
-            zone_ord = (self.time + 1) // self.error_buf.frag_point_num
+            zone_ord = self.time // self.error_buf.frag_point_num
             self.l_d[zone_ord] = l_d_new if l_d_new > self.l_d[zone_ord] else self.l_d[zone_ord]
             self.l_j[zone_ord] = l_j_new if l_j_new > self.l_j[zone_ord] else self.l_j[zone_ord]
             self.l_ori[zone_ord] = l_ori_new if l_ori_new > self.l_ori[zone_ord] else self.l_ori[zone_ord]
             self.l_v[zone_ord] = l_v_new if l_v_new > self.l_v[zone_ord] else self.l_v[zone_ord]
             self.error_buf.flag_reset(self.time)
 
-        zone_ord = (self.time + 1) // self.error_buf.frag_point_num
+        zone_ord = self.time // self.error_buf.frag_point_num
         l_d = self.l_d[zone_ord]
         l_j = self.l_j[zone_ord]
         l_ori = self.l_ori[zone_ord]
