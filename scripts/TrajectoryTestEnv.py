@@ -90,7 +90,7 @@ class ErrorBuffer:
         self.reach_full.fill(True)
 
 
-class CircleTrajectory(gymnasium.Env):
+class CircleTrajectoryTest(gymnasium.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 2
@@ -149,18 +149,18 @@ class CircleTrajectory(gymnasium.Env):
         self.thr = np.array([thr_dist, thr_jt, thr_ori, thr_vel])  # hyperparameter
         self.weight = weight  # hyperparameter
 
-        # initialize the kernel parameter and the error buffer
-        error_buf_zone_size = 200
-        self.zone_number = zone_num
-        assert (length+1) % self.zone_number == 0, "length+1 must be the multiple of the zone number"
-        frag_point_num = int((length+1) / self.zone_number)
-        self.error_buf = ErrorBuffer(zone_size=error_buf_zone_size, zone_num= self.zone_number, frag_point_num=frag_point_num)
-        # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 0.8, 3, 3  # initial value of kernel parameter
-        # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 2.8, 3, 3  # 25 epoch(4000stp/ep) value of kernel parameter
-        # self.l_d, self.l_j, self.l_ori, self.l_v = 20.886, 2.8, 3.45, 3 # 48 epoch (192k) value of kernel parameter
-        # self.l_d, self.l_j, self.l_ori, self.l_v = 83.6042, 3.656347, 4.482546, 3.365036  # 124 epoch (496k) value of kernel parameter
-        self.l_d, self.l_j, self.l_ori, self.l_v = None, None, None, None
-        self.l_init(self.zone_number)
+        # # initialize the kernel parameter and the error buffer
+        # error_buf_zone_size = 200
+        # self.zone_number = zone_num
+        # assert (length+1) % self.zone_number == 0, "length+1 must be the multiple of the zone number"
+        # frag_point_num = int((length+1) / self.zone_number)
+        # self.error_buf = ErrorBuffer(zone_size=error_buf_zone_size, zone_num= self.zone_number, frag_point_num=frag_point_num)
+        # # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 0.8, 3, 3  # initial value of kernel parameter
+        # # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 2.8, 3, 3  # 25 epoch(4000stp/ep) value of kernel parameter
+        # # self.l_d, self.l_j, self.l_ori, self.l_v = 20.886, 2.8, 3.45, 3 # 48 epoch (192k) value of kernel parameter
+        # # self.l_d, self.l_j, self.l_ori, self.l_v = 83.6042, 3.656347, 4.482546, 3.365036  # 124 epoch (496k) value of kernel parameter
+        # self.l_d, self.l_j, self.l_ori, self.l_v = None, None, None, None
+        # self.l_init(self.zone_number)
 
 
         ##################################################################
@@ -177,60 +177,15 @@ class CircleTrajectory(gymnasium.Env):
         self.l_ori.fill(3)
         self.l_v = np.zeros([zone_number, ], dtype=np.float32)
         self.l_v.fill(3)
-        # for i in range(0, 3):
-        #     self.l_d[i] = 83.6042
-        #     self.l_j[i] = 3.656347
-        #     self.l_ori[i] = 4.536543766
-        #     self.l_v[i] = 3.365036
-        # self.l_d[9] = 17.7944
-        # self.l_j[9] = 3.187
-        # self.l_ori[9] = 5.7651
-        # self.l_v[9] = 6.0371
-        #
-        # self.l_d[8] = 9.8895
-        # self.l_j[8] = 2.3466
-        # self.l_ori[8] = 3.3427
-        # self.l_v[8] = 3.0
-        #
-        # self.l_d[7] = 8.9713
-        # self.l_j[7] = 1.6475
-        # self.l_ori[7] = 8.2257
-        # self.l_v[7] = 3.0
-        #
-        # self.l_d[6] = 19.232912
-        # self.l_j[6] = 1.6556
-        # self.l_ori[6] = 5.6694
-        # self.l_v[6] = 3.1458
-        #
-        # self.l_d[5] = 40.92014
-        # self.l_j[5] = 2.6458
-        # self.l_ori[5] = 8.0671
-        # self.l_v[5] = 5.6325
-        #
-        # self.l_d[4] = 269.555
-        # self.l_j[4] = 6.4707
-        # self.l_ori[4] = 6.8450
-        # self.l_v[4] = 11.0463
-        #
-        # self.l_d[3] = 316.0061
-        # self.l_j[3] = 17.2000
-        # self.l_ori[3] = 10.67
-        # self.l_v[3] = 3.265
-        #
-        # self.l_d[2] = 232.00455
-        # self.l_j[2] = 14.1506
-        # self.l_ori[2] = 17.429
-        # self.l_v[2] = 3.265036
-        #
-        # self.l_d[1] = 349.6698
-        # self.l_j[1] = 15.211567
-        # self.l_ori[1] = 25.27549
-        # self.l_v[1] = 3.3650
-        #
-        # self.l_d[0] = 173.2757
-        # self.l_j[0] = 14.3709
-        # self.l_ori[0] = 34.4609
-        # self.l_v[0] = 9.0543
+        for i in range(0, 3):
+            self.l_d[i] = 83.6042
+            self.l_j[i] = 3.656347
+            self.l_ori[i] = 4.536543766
+            self.l_v[i] = 3.365036
+        self.l_d[3] = 20.886
+        self.l_j[3] = 2.8
+        self.l_ori[3] = 3.45
+        self.l_v[3] = 3.365036
 
     def workSpaceInit(self, length, delta_y=5):
         """
@@ -393,14 +348,12 @@ class CircleTrajectory(gymnasium.Env):
         else:
             self.freeze_step += 1
             if self.freeze_step >= 10:
-                reward_m = (self.traj_length - self.time)
-                reward -= reward_m if reward_m > 5 else 5
+                reward -= 5
                 print("freeze step reset \n")
-                self.error_buf.error_step()
                 return self.state, reward, True, False, {}
             self.pre_torque_state = self.torque_state
             self.limb.exec_torque_cmd(self.torque_state)
-            reward -= 10
+            reward -= 5
 
         # 首先unpause，发布消息后，开始仿真
         rospy.wait_for_service("/gazebo/unpause_physics")
@@ -432,8 +385,8 @@ class CircleTrajectory(gymnasium.Env):
             dif_count += 1
             if abs(dif) > 0.75 * PI and dif_count <= 6:  # the last joint is not important
                 # print(self.joint_state_error)
-                reward_m = (self.traj_length-self.time)/2
-                reward -= reward_m if reward_m >5 else 5
+                reward_m = (self.traj_length-self.time)
+                reward -= reward_m
                 # reward_m = (self.traj_length - self.time)
                 # reward -= reward_m
                 print("dif torque reset \n")
@@ -483,65 +436,12 @@ class CircleTrajectory(gymnasium.Env):
     def _compute_reward(self, w_dist=0.4, w_joint=0.3, w_ori=0.2, w_vel=0.1):
         reward = 0
 
-        if self.error_buf.at_brim(self.time):
-            d_mean, j_mean, ori_mean, v_mean = self.error_buf.mean_error(ord=self.time)
-            l_d_new = kl_05 / d_mean
-            l_j_new = kl_05 / j_mean
-            l_ori_new = kl_05 / ori_mean
-            l_v_new = kl_05 / v_mean
-            zone_ord = self.time // self.error_buf.frag_point_num
-            self.l_d[zone_ord] = l_d_new if l_d_new > self.l_d[zone_ord] else self.l_d[zone_ord]
-            self.l_j[zone_ord] = l_j_new if l_j_new > self.l_j[zone_ord] else self.l_j[zone_ord]
-            self.l_ori[zone_ord] = l_ori_new if l_ori_new > self.l_ori[zone_ord] else self.l_ori[zone_ord]
-            self.l_v[zone_ord] = l_v_new if l_v_new > self.l_v[zone_ord] else self.l_v[zone_ord]
-            self.error_buf.flag_reset(self.time)
-
-        zone_ord = self.time // self.error_buf.frag_point_num
-        l_d = self.l_d[zone_ord]
-        l_j = self.l_j[zone_ord]
-        l_ori = self.l_ori[zone_ord]
-        l_v = self.l_v[zone_ord]
-        print("l_d is", l_d)
-        print("l_j is", l_j)
-        print("l_ori is", l_ori)
-        print("l_v is", l_v)
-
         # 根据末端执行器位置与目标位置之间的距离计算惩罚
-        d_error = np.linalg.norm((self.state_xyz - self.target_xyz) / 1000)
-        x_d = d_error
-        d_loss = -1 + 2 / (np.exp(x_d * l_d) + np.exp(
-            -1 * x_d * l_d))  # use a logistic smooth kernel function here, in [-1,0]
-        reward += w_dist * d_loss
-        print("dis reward:", d_loss)
-        self.rms_error += (d_error * 1000) ** 2
+        d_error = np.linalg.norm((self.state_xyz - self.target_xyz)/1000)
 
-        # 角度惩罚
-        joint_error = np.linalg.norm(self.joint_state_error[0:5], ord=1)
-        x_j = joint_error
-        j_loss = -1 + 2 / (np.exp(x_j * l_j) + np.exp(-1 * x_j * l_j))
-        print("joint reward:", j_loss)
-        reward += w_joint * j_loss
+        self.rms_error += (d_error/1000) ** 2
 
-        # 姿态惩罚
-        delta_ori = self.quatdiff_in_euler(self.state_orientation, self.target_orientation)
-        ori_error = np.linalg.norm(delta_ori, ord=1)
-        x_ori = ori_error
-        ori_loss = -1 + 2 / (np.exp(x_ori * l_ori) + np.exp(-1 * x_ori * l_ori))
-        print("ori reward:", ori_loss)
-        reward += w_ori * ori_loss
-
-        # 速度惩罚, only when in the middle of the trajectory
-        v_loss = 0
-        if 2 < self.time < self.traj_length - 2:
-            vel_error = np.linalg.norm(self.linear_vel - self.target_velocity, ord=1)
-            x_v = vel_error
-            v_loss = -1 + 2 / (np.exp(x_v * l_v) + np.exp(-1 * x_v * l_v))
-            self.error_buf.store(self.time, d_error, joint_error, ori_error, vel_error)
-        else:
-            reward = reward / (w_dist + w_joint + w_ori)
-            self.error_buf.store(self.time, d_error, joint_error, ori_error, 0)
-        print("velocity reward:", v_loss)
-        reward += w_vel * v_loss
+        reward -= d_error
 
         return reward
 
