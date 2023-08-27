@@ -284,29 +284,27 @@ class TorqueCircleTrajectory(gymnasium.Env):
         # fetch the sample point pair
         sample = self.getSelectedPointInLine()
         # print("sample is :", sample)
-        self.startpoint = sample[0][0]
-        self.joint_state = sample[1][0]
-        self.init_joint_state = self.joint_state
-        self.pre_joint_state = self.joint_state
-        self.ref_joint_state = self.joint_state
-        self.pre_ref_joint_state = self.joint_state
+        self.ref_xyz = sample[0][0]
+        self.ref_joint_state = sample[1][0]
+        self.pre_ref_xyz = self.ref_xyz
+        self.pre_ref_joint_state = self.ref_joint_state
 
-        # print("init_joint_state is :", self.init_joint_state)
         rospy.wait_for_service("/gazebo/unpause_physics")
         try:
             self.unpause()
         except (rospy.ServiceException) as e:
             print("/gazebo/unpause_physics service call failed")
         # move to the start point
-        self.limb.exec_position_cmd(self.joint_state)
+        self.limb.exec_position_cmd(self.ref_joint_state)
         time.sleep(2.0)
         self.torque_state = np.array(
             [self.limb.joint_efforts()[n] for n in self.limb._joint_names])  # the whole 7 joints
+        self.joint_state = np.array([self.limb._joint_angle[n] for n in self.limb._joint_names])  # the whole 7 joints
+        self.pre_joint_state = self.joint_state
         self.pre_torque_state = self.torque_state
         self.state_xyz = 1000 * self.limb.endpoint_pose()['position']  # millimeter
         self.last_xyz = self.state_xyz
-        self.ref_xyz = self.state_xyz
-        self.pre_ref_xyz = self.ref_xyz
+
         self.state_orientation = self.limb.endpoint_pose()['orientation']  # this is a array of type quaternion
         # print("orientation is :\n", self.state_orientation)
         self.linear_vel = self.limb.endpoint_velocity()['linear']
@@ -602,11 +600,14 @@ class TorqueCircleTrajectory(gymnasium.Env):
         q = self.joint_state
         q_dot_desired = self.joint_trajectory_velocities[time] + qd_alter
         q_dot = self.limb.velocities()
+        q_dot_noise_std = np.array([0.02,0.02,0.02,0.03,0.03,0.03,0.03])   # add white noise for sim-real
+        q_dot = self.generate_white_gaussian_noise(q_dot, q_dot_noise_std)
         q_ddot_desired = self.joint_trajectory_accelerations[time]
 
         e = q_desired - q
         e_dot = q_dot_desired - q_dot
         M = self.limb.joint_inertia_matrix()
+        M = self.generate_white_gaussian_noise(M,0.01)
         C = self.limb.coriolis_comp()
         G = self.limb.gravity_comp()
         tau = np.dot(M, q_ddot_desired + self.KD * e_dot + self.KP * e)
@@ -653,6 +654,11 @@ class TorqueCircleTrajectory(gymnasium.Env):
             done = True
 
         return done
+
+    def generate_white_gaussian_noise(self,audio,std):
+        """Add Gaussian noise to an audio signal."""
+        noise = np.random.randn(*audio.shape) * std
+        return audio + noise
 
     @staticmethod
     def check_xyz(xyz):
