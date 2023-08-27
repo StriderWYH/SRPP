@@ -10,8 +10,8 @@ import rospy
 import numpy as np
 from baseline3 import *
 from baseline4 import *
-from CircleTrajectory import *
-from TrajectoryTestEnv import *
+# from Joint_circle_trajectory import *
+from Torque_Circle_ref import *
 import torch
 from torch.optim import Adam
 
@@ -35,30 +35,40 @@ def main():
     total_steps = steps_every_epoch * epochs
     k_update_times = 5
     update_k_everysteps = int(total_steps / k_update_times)
-    save_frequency = update_k_everysteps
+    save_frequency = int(update_k_everysteps/2)
     eval_frequency = steps_every_epoch
 
-    env = CircleTrajectory(update_k_everysteps=update_k_everysteps)
-    test_env = CircleTrajectoryTest(update_k_everysteps=update_k_everysteps)
+    env = TorqueCircleTrajectory(update_k_everysteps=update_k_everysteps)
+    # test_env = CircleTrajectoryTest(update_k_everysteps=update_k_everysteps)
     # Check the validation of the customized env
     check_env(env, warn=True, skip_render_check=True)
-    check_env(test_env, warn=True, skip_render_check=True)
+    # check_env(test_env, warn=True, skip_render_check=True)
     policy_kwargs = dict(net_arch=[256, 256])
     # Save a checkpoint every 1000 steps
     checkpoint_callback = CheckpointCallback(
         save_freq=save_frequency,
         save_path="./src/SRPP/scripts/logs",
-        name_prefix="CircleTest2",
+        name_prefix="TorqueCircle",
         save_replay_buffer=False,
         save_vecnormalize=True,
     )
-    eval_callback = EvalCallback(test_env, best_model_save_path="./src/SRPP/scripts/logs/sac_Franka_best_model_circletest",
+    eval_callback = EvalCallback(env, best_model_save_path="./src/SRPP/scripts/logs/sac_Franka_best_model_Torquecircle",
                                  log_path="./src/SRPP/scripts/logs/sac_Franka_eval", eval_freq=eval_frequency,
                                  n_eval_episodes=5, deterministic=True, render=False)
     # Create the callback list
     callback = CallbackList([checkpoint_callback, eval_callback])
 
     # Create network model or load a pretrained model
+    o, _ = env.reset()
+    r, d, ep_ret, ep_len, n = 0, False, 0, 0, 0
+    ep_rms_error = 0
+    while n < 50:
+        d = env.pre_train_step()
+        # print("round:",n, "\n")
+        if d:
+            o, _ = env.reset()
+            n += 1
+    env.error_buf.flag_set()
     model = SAC("MlpPolicy", env, learning_starts=4000, batch_size=160, learning_rate=1e-3, ent_coef='auto_0.2',
                 policy_kwargs=policy_kwargs, tau=0.005, gamma=0.93, train_freq=(30, "step"), gradient_steps=-1,
                 buffer_size=200000,
@@ -67,24 +77,24 @@ def main():
 
     # model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_modelCircle_7", env=env)
     # model.load_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
-    model.learn(total_timesteps=update_k_everysteps, log_interval=10, tb_log_name="Circle_Tracking_Test2",
+    model.learn(total_timesteps=total_steps, log_interval=10, tb_log_name="TorqueCircle_Tracking",
                 callback=callback,
                 reset_num_timesteps=True)
-    model.save("./src/SRPP/scripts/logs/sac_Franka_model" + "CircleTest2_1")
+    model.save("./src/SRPP/scripts/logs/sac_Franka_model" + "TorqueCircle_1")
     # model.save_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
 
-    for i in range(2, k_update_times + 1):
-        # update the kernel parameter
-        env.error_buf.flag_set()
-        # Train the network
-        model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_model" + f"CircleTest2_{i-1}", env=env)
-        model.learn(total_timesteps=update_k_everysteps, log_interval=10, tb_log_name="Circle_Tracking_Test2",
-                    callback=callback,
-                    reset_num_timesteps=False)
-
-        # Save the network at the end
-        model.save("./src/SRPP/scripts/logs/sac_Franka_model" + f"CircleTest2_{i}")
-        # model.save_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
+    # for i in range(2, k_update_times + 1):
+    #     # update the kernel parameter
+    #     env.error_buf.flag_set()
+    #     # Train the network
+    #     model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_model" + f"JointCircle_{i-1}", env=env)
+    #     model.learn(total_timesteps=update_k_everysteps, log_interval=10, tb_log_name="TorqueCircle_Tracking",
+    #                 callback=callback,
+    #                 reset_num_timesteps=False)
+    #
+    #     # Save the network at the end
+    #     model.save("./src/SRPP/scripts/logs/sac_Franka_model" + f"TorqueCircle_{i}")
+    #     # model.save_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
 
     # A simple Test
     # model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_best_model/best_model",env=env)

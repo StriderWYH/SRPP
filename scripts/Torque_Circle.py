@@ -40,7 +40,7 @@ class ErrorBuffer:
     def __init__(self, zone_size=200, zone_num=8, frag_point_num=0.8):
         self.zone_size = zone_size  # capacity of a zone
         self.zone_num = zone_num  # how many zone set
-        self.frag_point_num = frag_point_num    # number of points per zone
+        self.frag_point_num = frag_point_num  # number of points per zone
         assert isinstance(self.frag_point_num, int), "fragment length must be an integer"
         # initialize the error buffer
         self.d_error_buf = np.zeros([self.zone_num, self.zone_size], dtype=np.float32)
@@ -132,7 +132,10 @@ class CircleTrajectory(gymnasium.Env):
         self.startpoint = None
         self.freeze_pos_step = None
         self.rms_error = None
+
         self.time = None
+        self.abs_time = None
+
         self.target_velocity = None
         self.ck_point_num = None
         self.sampleAngle = None
@@ -146,15 +149,22 @@ class CircleTrajectory(gymnasium.Env):
         self.vel = vel
         self.accel = accel
         self.traj_length = length
+        self.KD = 2
+        self.KP = 30
+
+        self.joint_trajectory_accelerations = []
+        self.joint_trajectory_velocities = []
+
         self.thr = np.array([thr_dist, thr_jt, thr_ori, thr_vel])  # hyperparameter
         self.weight = weight  # hyperparameter
 
         # initialize the kernel parameter and the error buffer
         error_buf_zone_size = 200
         self.zone_number = zone_num
-        assert (length+1) % self.zone_number == 0, "length+1 must be the multiple of the zone number"
-        frag_point_num = int((length+1) / self.zone_number)
-        self.error_buf = ErrorBuffer(zone_size=error_buf_zone_size, zone_num= self.zone_number, frag_point_num=frag_point_num)
+        assert (length + 1) % self.zone_number == 0, "length+1 must be the multiple of the zone number"
+        frag_point_num = int((length + 1) / self.zone_number)
+        self.error_buf = ErrorBuffer(zone_size=error_buf_zone_size, zone_num=self.zone_number,
+                                     frag_point_num=frag_point_num)
         # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 0.8, 3, 3  # initial value of kernel parameter
         # self.l_d, self.l_j, self.l_ori, self.l_v = 3.6, 2.8, 3, 3  # 25 epoch(4000stp/ep) value of kernel parameter
         # self.l_d, self.l_j, self.l_ori, self.l_v = 20.886, 2.8, 3.45, 3 # 48 epoch (192k) value of kernel parameter
@@ -162,13 +172,13 @@ class CircleTrajectory(gymnasium.Env):
         self.l_d, self.l_j, self.l_ori, self.l_v = None, None, None, None
         self.l_init(self.zone_number)
 
-
         ##################################################################
         # 初始化环境
         self.workSpaceInit(length=length)
+        self.compute_joint_velocity_acceleration(time_delta)
         self.reset()
 
-    def l_init(self,zone_number):
+    def l_init(self, zone_number):
         self.l_d = np.zeros([zone_number, ], dtype=np.float32)
         self.l_d.fill(3.6)
         self.l_j = np.zeros([zone_number, ], dtype=np.float32)
@@ -177,60 +187,16 @@ class CircleTrajectory(gymnasium.Env):
         self.l_ori.fill(3)
         self.l_v = np.zeros([zone_number, ], dtype=np.float32)
         self.l_v.fill(3)
+        # The initial value needed to be set
         # for i in range(0, 3):
         #     self.l_d[i] = 83.6042
         #     self.l_j[i] = 3.656347
         #     self.l_ori[i] = 4.536543766
         #     self.l_v[i] = 3.365036
-        # self.l_d[9] = 17.7944
-        # self.l_j[9] = 3.187
-        # self.l_ori[9] = 5.7651
-        # self.l_v[9] = 6.0371
-        #
-        # self.l_d[8] = 9.8895
-        # self.l_j[8] = 2.3466
-        # self.l_ori[8] = 3.3427
-        # self.l_v[8] = 3.0
-        #
-        # self.l_d[7] = 8.9713
-        # self.l_j[7] = 1.6475
-        # self.l_ori[7] = 8.2257
-        # self.l_v[7] = 3.0
-        #
-        # self.l_d[6] = 19.232912
-        # self.l_j[6] = 1.6556
-        # self.l_ori[6] = 5.6694
-        # self.l_v[6] = 3.1458
-        #
-        # self.l_d[5] = 40.92014
-        # self.l_j[5] = 2.6458
-        # self.l_ori[5] = 8.0671
-        # self.l_v[5] = 5.6325
-        #
-        # self.l_d[4] = 269.555
-        # self.l_j[4] = 6.4707
-        # self.l_ori[4] = 6.8450
-        # self.l_v[4] = 11.0463
-        #
-        # self.l_d[3] = 316.0061
-        # self.l_j[3] = 17.2000
-        # self.l_ori[3] = 10.67
-        # self.l_v[3] = 3.265
-        #
-        # self.l_d[2] = 232.00455
-        # self.l_j[2] = 14.1506
-        # self.l_ori[2] = 17.429
-        # self.l_v[2] = 3.265036
-        #
-        # self.l_d[1] = 349.6698
-        # self.l_j[1] = 15.211567
-        # self.l_ori[1] = 25.27549
-        # self.l_v[1] = 3.3650
-        #
-        # self.l_d[0] = 173.2757
-        # self.l_j[0] = 14.3709
-        # self.l_ori[0] = 34.4609
-        # self.l_v[0] = 9.0543
+        # self.l_d[3] = 20.886
+        # self.l_j[3] = 2.8
+        # self.l_ori[3] = 3.45
+        # self.l_v[3] = 3.365036
 
     def workSpaceInit(self, length, delta_y=5):
         """
@@ -249,14 +215,35 @@ class CircleTrajectory(gymnasium.Env):
         self.sampleAngle = []
         self.ck_point_num = length
         for t in range(0, length + 1):
-            r = 300
-            x = r * np.cos(0.0125 * PI * t) + r + 100
-            y = r * np.sin(0.025 * PI * t)
-            self.samplePoint.append(np.array([x, y, 400]))
+            # r = 300
+            # x = r * np.cos(0.0125 * PI * t) + r + 100
+            # y = r * np.sin(0.0125 * PI * t)
+            r = 450
+            x = r * np.sin(PI * (1 / 4 + t / 320))
+            y = r * np.cos(PI * (1 / 4 + t / 320))
+            z = 400
+            # if t <= 39:
+            #     x = 250
+            #     y = 200 - 10*t
+            #     z = 400
+            # elif t <= 79:
+            #     x = 250 + 10*(t-40)
+            #     y = -200
+            #     z = 400
+            # elif t <= 119:
+            #     x = 650
+            #     y = -200 + 10*(t-80)
+            #     z = 400
+            # else:
+            #     x = 650 - 10*(t-120)
+            #     y = 200
+            #     z = 400
+            self.samplePoint.append(np.array([x, y, z]))
             temp_check = self.limb.inverse_kinematics(self.samplePoint[t] / 1000,
                                                       self.target_orientation)
             assert temp_check[0], "position t has no inverse kinematics"
             self.sampleAngle.append(temp_check[1])
+
         # print("\n show time: \n")
         # for t in range(0, length+1):
         #     self.limb.exec_position_cmd(self.sampleAngle[t])  # move to the neutral position
@@ -278,9 +265,11 @@ class CircleTrajectory(gymnasium.Env):
         return PointPair, AnglePair
 
     def reset(self, seed=None, options=None, startstate=None):
+        self.abs_time = 0
         self.freeze_step = 0
         self.freeze_pos_step = 0
-        # print("last turn's rms_error:", self.rms_error/self.time)
+        if (self.time is not None and self.time > 0):
+            print("last turn's rms_error:", np.sqrt(self.rms_error / self.time))
         self.rms_error = 0
         print("checkpoint this round is:", self.count_checkpoint)
         # print("count done is:", self.count_done, "\n")
@@ -374,10 +363,42 @@ class CircleTrajectory(gymnasium.Env):
         self.state = np.hstack((state, temp))
 
     def step(self, action, move=True):
+        self.abs_time += 1
+        if self.abs_time % 2 == 0:
+            self.time += 1
+            pd_torque = self.PD_compute_torque(self.time)
+            if self.torque_space.contains(pd_torque):
+                self.freeze_step = 0
+                self.pre_torque_state = self.torque_state
+                self.torque_state = pd_torque
+                # print("exec torque")
+                self.limb.exec_torque_cmd(pd_torque)
+            else:
+                self.pre_torque_state = self.torque_state
+                self.limb.exec_torque_cmd(self.torque_state)
+            rospy.wait_for_service("/gazebo/unpause_physics")
+            try:
+                self.unpause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/unpause_physics service call failed")
+            # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
+            time.sleep(time_delta / 2)  # 频率是2倍
+            # 然后我们停止仿真，开始观测目前的状态
+            rospy.wait_for_service("/gazebo/pause_physics")
+            try:
+                pass
+                self.pause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/pause_physics service call failed")
 
-        self.time += 1
-        time_d = self.time
+            # update  the robot state
+            self.update_robot_state()
+            d_error = np.linalg.norm((self.state_xyz - self.target_xyz) / 1000)
+            self.rms_error += (d_error * 1000) ** 2
+
         reward = 0
+        time_d = self.time
+
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         temp_torque = self.Compute_torque_action(action)
         # print("temp_torque is:", temp_torque)
@@ -392,9 +413,8 @@ class CircleTrajectory(gymnasium.Env):
             self.limb.exec_torque_cmd(now_torque)
         else:
             self.freeze_step += 1
-            if self.freeze_step >= 10:
-                reward_m = 10
-                reward -= reward_m
+            if self.freeze_step >= 8:
+                reward -= 5
                 print("freeze step reset \n")
                 self.error_buf.error_step()
                 return self.state, reward, True, False, {}
@@ -432,8 +452,8 @@ class CircleTrajectory(gymnasium.Env):
             dif_count += 1
             if abs(dif) > 0.75 * PI and dif_count <= 6:  # the last joint is not important
                 # print(self.joint_state_error)
-                reward_m = (self.traj_length-self.time)/10
-                reward -= reward_m if reward_m >10 else 10
+                reward_m = 5
+                reward -= reward_m if reward_m > 5 else 5
                 # reward_m = (self.traj_length - self.time)
                 # reward -= reward_m
                 print("dif torque reset \n")
@@ -462,7 +482,7 @@ class CircleTrajectory(gymnasium.Env):
         else:
             print("not safe state\n")
             done = True
-            reward -= -15
+            reward -= -5
             # reinitialize the world
 
         info = {
@@ -513,11 +533,11 @@ class CircleTrajectory(gymnasium.Env):
             -1 * x_d * l_d))  # use a logistic smooth kernel function here, in [-1,0]
         reward += w_dist * d_loss
         print("dis reward:", d_loss)
-        self.rms_error += (d_error * 1000) ** 2
+        # self.rms_error += (d_error * 1000) ** 2
 
         # 角度惩罚
         joint_error = np.linalg.norm(self.joint_state_error[0:5], ord=1)
-        x_j = joint_error
+        x_j = 0.8 * joint_error  # scale to a relative small num
         j_loss = -1 + 2 / (np.exp(x_j * l_j) + np.exp(-1 * x_j * l_j))
         print("joint reward:", j_loss)
         reward += w_joint * j_loss
@@ -582,10 +602,40 @@ class CircleTrajectory(gymnasium.Env):
         return np.hstack((torque_1234, torque_567))
 
     def Compute_torque_action(self, torque):
-        torque_1234 = np.array([torque[0], torque[1], torque[2], torque[3]]) * 5
+        torque_1234 = np.array([torque[0], torque[1], torque[2], torque[3]]) * 2
         torque_567 = np.array([torque[4], torque[5], torque[6]])
 
         return np.hstack((torque_1234, torque_567))
+
+    #################################################################################################
+    # PD law related:::
+
+    def compute_joint_velocity_acceleration(self, dt):
+
+        joint_positions = self.sampleAngle
+        # generate a desired velocities
+
+        joint_velocities = np.diff(joint_positions, axis=0) / dt
+        self.joint_trajectory_velocities = np.vstack((joint_velocities, joint_velocities[-1]))
+
+        joint_acceleration = np.diff(self.joint_trajectory_velocities, axis=0) / dt
+        self.joint_trajectory_accelerations = np.vstack((joint_acceleration, joint_acceleration[-1]))
+
+    def PD_compute_torque(self, time):
+        q_desired = self.sampleAngle[time]
+        q = self.joint_state
+        q_dot_desired = self.joint_trajectory_velocities[time]
+        q_dot = self.limb.velocities()
+        q_dot_desired = self.joint_trajectory_accelerations[time]
+
+        e = q_desired - q
+        e_dot = q_dot_desired - q_dot
+        M = self.limb.joint_inertia_matrix()
+        C = self.limb.coriolis_comp()
+        G = self.limb.gravity_comp()
+        tau = np.dot(M, q_dot_desired + self.KD * e_dot + self.KP * e)
+
+        return tau
 
     @staticmethod
     def check_xyz(xyz):
