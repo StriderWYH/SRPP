@@ -99,23 +99,25 @@ class TorqueCircleTrajectory(gymnasium.Env):
     }
 
     # thr_dist(mm), thr_jt(rad), thr_ori(), thr_vel(m/s)
-    def __init__(self, thr_dist=10, thr_jt=0.2 * PI, thr_ori=0.08, thr_vel=0.01, weight=0.00069, vel=4.0, accel=4.0,
-                 length=159, update_k_everysteps=40000, zone_num=10, error_buf=None, limb=None):
+    def __init__(self, thr_dist=5, thr_jt=0.2 * PI, thr_ori=0.08, thr_vel=0.01, weight=0.00069, vel=4.0, accel=4.0,
+                 length=159, update_k_everysteps=40000, zone_num=10, error_buf=None, limb=None, test=False):
 
+        self.error = np.zeros(4, )
+        self.rms_record = 0
         self.next_ref_joint_state = None
         self.next_ref_xyz = None
         self.pre_ref_joint_state = None
         self.pre_ref_xyz = None
         self.torque8to14_store = None
         self.torque1to7_store = None
-
+        self.test = test
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)  # 恢复仿真
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)  # 暂停仿真
         self.reset_proxy = rospy.ServiceProxy("/gazebo/reset_world", Empty)
 
         # 定义观测空间
         self.torque_space = spaces.Box(low=obs_torque_low_bd, high=obs_torque_high_bd, dtype=np.float64)
-        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(48,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(44,), dtype=np.float64)
         # 定义动作空间
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(14,), dtype=np.float32)  # temporary action torque
 
@@ -142,7 +144,9 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.startpoint = None
         self.freeze_pos_step = None
         self.rms_error = None
-
+        self.o_error = None
+        self.v_error = None
+        self.j_error = None
         self.time = None
         self.abs_time = None
 
@@ -219,22 +223,6 @@ class TorqueCircleTrajectory(gymnasium.Env):
             x = r * np.sin(PI * (1 / 4 + t / 320))
             y = r * np.cos(PI * (1 / 4 + t / 320))
             z = 400
-            # if t <= 39:
-            #     x = 250
-            #     y = 200 - 10*t
-            #     z = 400
-            # elif t <= 79:
-            #     x = 250 + 10*(t-40)
-            #     y = -200
-            #     z = 400
-            # elif t <= 119:
-            #     x = 650
-            #     y = -200 + 10*(t-80)
-            #     z = 400
-            # else:
-            #     x = 650 - 10*(t-120)
-            #     y = 200
-            #     z = 400
             self.samplePoint.append(np.array([x, y, z]))
             temp_check = self.limb.inverse_kinematics(self.samplePoint[t] / 1000,
                                                       self.target_orientation)
@@ -266,8 +254,16 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.freeze_step = 0
         self.freeze_pos_step = 0
         if self.time is not None and self.time > 0:
-            print("last turn's rms_error:", np.sqrt(self.rms_error / self.time))
+            self.error[0] = np.sqrt(self.rms_error / self.time)
+            self.error[1] = self.j_error / self.time
+            self.error[2] = self.o_error / self.time
+            self.error[3] = self.v_error / self.time
+            print("last turn's rms_error of distance :", self.error[0])
+            self.rms_record = 2
         self.rms_error = 0
+        self.o_error = 0
+        self.v_error = 0
+        self.j_error = 0
         print("checkpoint this round is:", self.count_checkpoint)
         # print("count done is:", self.count_done, "\n")
         self.count_checkpoint = 0
@@ -314,8 +310,8 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.ref_velocity = 0.001 * (self.ref_xyz - self.pre_ref_xyz) / time_delta
         temp = [
             self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
-            self.state_orientation.x, self.state_orientation.y,
-            self.state_orientation.z, self.state_orientation.w
+            # self.state_orientation.x, self.state_orientation.y,
+            # self.state_orientation.z, self.state_orientation.w
         ]
         # print("torque_state is:", self.torque_state/50)
         # print("pre_joint_state is:", self.pre_joint_state / PI)
@@ -356,8 +352,8 @@ class TorqueCircleTrajectory(gymnasium.Env):
         # print("alter_torque_state is:", alter_torque_state)
         temp = [
             self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
-            self.state_orientation.x, self.state_orientation.y,
-            self.state_orientation.z, self.state_orientation.w
+            # self.state_orientation.x, self.state_orientation.y,
+            # self.state_orientation.z, self.state_orientation.w
         ]
         state = np.hstack((self.joint_state / PI, self.ref_joint_state / PI, self.joint_state_error / PI,
                            alter_torque_state, alter_pre_torque_state,
@@ -365,6 +361,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.state = np.hstack((state, temp))
 
     def step(self, action, move=True):
+        self.rms_record = 0 if self.rms_record <= 0 else (self.rms_error - 1)
         self.time += 1
         reward = 0
         time_d = self.time
@@ -372,6 +369,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         q_alter, qd_alter = self.Compute_torque_action(action)
 
         now_torque = self.PD_compute_torque(time_d, q_alter, qd_alter)
+        # now_torque = self.PD_compute_torque(time_d, 0, 0)
 
         if self.torque_space.contains(now_torque):
             self.freeze_step = 0
@@ -468,7 +466,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         # 可选的渲染方法
         pass
 
-    def _compute_reward(self, w_dist=0.4, w_joint=0.3, w_ori=0.2, w_vel=0.1):
+    def _compute_reward(self, w_dist=0.5, w_joint=0.3, w_ori=0, w_vel=0.2):
         reward = 0
 
         if self.error_buf.at_brim(self.time):
@@ -509,6 +507,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         j_loss = -1 + 2 / (np.exp(x_j * l_j) + np.exp(-1 * x_j * l_j))
         print("joint reward:", j_loss)
         reward += w_joint * j_loss
+        self.j_error += joint_error
 
         # 姿态惩罚
         delta_ori = self.quatdiff_in_euler(self.state_orientation, self.target_orientation)
@@ -517,9 +516,11 @@ class TorqueCircleTrajectory(gymnasium.Env):
         ori_loss = -1 + 2 / (np.exp(x_ori * l_ori) + np.exp(-1 * x_ori * l_ori))
         print("ori reward:", ori_loss)
         reward += w_ori * ori_loss
+        self.o_error += ori_error
 
         # 速度惩罚, only when in the middle of the trajectory
         v_loss = 0
+        vel_error = 0
         if 2 < self.time < self.traj_length - 2:
             vel_error = np.linalg.norm(self.linear_vel - self.ref_velocity, ord=1)
             x_v = vel_error
@@ -530,6 +531,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
             self.error_buf.store(self.time, d_error, joint_error, ori_error, 0)
         print("velocity reward:", v_loss)
         reward += w_vel * v_loss
+        self.v_error += vel_error
 
         return reward
 
@@ -600,14 +602,14 @@ class TorqueCircleTrajectory(gymnasium.Env):
         q = self.joint_state
         q_dot_desired = self.joint_trajectory_velocities[time] + qd_alter
         q_dot = self.limb.velocities()
-        q_dot_noise_std = np.array([0.02,0.02,0.02,0.03,0.03,0.03,0.03])   # add white noise for sim-real
+        q_dot_noise_std = np.array([0.02, 0.02, 0.02, 0.03, 0.03, 0.03, 0.03])  # add white noise for sim-real
         q_dot = self.generate_white_gaussian_noise(q_dot, q_dot_noise_std)
         q_ddot_desired = self.joint_trajectory_accelerations[time]
 
         e = q_desired - q
         e_dot = q_dot_desired - q_dot
         M = self.limb.joint_inertia_matrix()
-        M = self.generate_white_gaussian_noise(M,0.01)
+        M = self.generate_white_gaussian_noise(M, 0.01)
         C = self.limb.coriolis_comp()
         G = self.limb.gravity_comp()
         tau = np.dot(M, q_ddot_desired + self.KD * e_dot + self.KP * e)
@@ -655,7 +657,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
 
         return done
 
-    def generate_white_gaussian_noise(self,audio,std):
+    def generate_white_gaussian_noise(self, audio, std):
         """Add Gaussian noise to an audio signal."""
         noise = np.random.randn(*audio.shape) * std
         return audio + noise

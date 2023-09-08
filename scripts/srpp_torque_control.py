@@ -19,7 +19,7 @@ from panda_robot import PandaArm
 from franka_dataflow.getch import getch
 from future.utils import viewitems
 from stable_baselines3 import SAC
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback,BaseCallback
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -27,6 +27,24 @@ from stable_baselines3.common.evaluation import evaluate_policy
 """
 Program run from here
 """
+class RMSCallback(BaseCallback):
+    """
+    Custom callback for plotting additional values in tensorboard.
+    """
+
+    def __init__(self, verbose=0,env=None):
+        super(RMSCallback, self).__init__(verbose)
+        self.env = env
+
+    def _on_step(self) -> bool:
+        # Log scalar value (here a random variable)
+        if self.env.rms_record >0:
+            rms_error = self.env.error[0]
+            self.logger.record('Error/RMS d_error',rms_error)
+            self.logger.record('Error/j_error',self.env.error[1])
+            self.logger.record('Error/o_error',self.env.error[2])
+            self.logger.record('Error/v_error',self.env.error[3])
+        return True
 
 
 def main():
@@ -48,17 +66,18 @@ def main():
     checkpoint_callback = CheckpointCallback(
         save_freq=save_frequency,
         save_path="./src/SRPP/scripts/logs",
-        name_prefix="TorqueCircle",
+        name_prefix="TorqueCircle_refsac",
         save_replay_buffer=False,
         save_vecnormalize=True,
     )
-    eval_callback = EvalCallback(env, best_model_save_path="./src/SRPP/scripts/logs/sac_Franka_best_model_Torquecircle",
+    eval_callback = EvalCallback(env, best_model_save_path="./src/SRPP/scripts/logs/sac_Franka_best_model_Torquecircle_refsac",
                                  log_path="./src/SRPP/scripts/logs/sac_Franka_eval", eval_freq=eval_frequency,
                                  n_eval_episodes=5, deterministic=True, render=False)
+    rms_callback = RMSCallback(env=env)
     # Create the callback list
-    callback = CallbackList([checkpoint_callback, eval_callback])
+    callback = CallbackList([checkpoint_callback, eval_callback, rms_callback])
 
-    # Create network model or load a pretrained model
+    # Initialize the kernel parameter
     o, _ = env.reset()
     r, d, ep_ret, ep_len, n = 0, False, 0, 0, 0
     ep_rms_error = 0
@@ -69,6 +88,7 @@ def main():
             o, _ = env.reset()
             n += 1
     env.error_buf.flag_set()
+    # Create network model or load a pretrained model
     model = SAC("MlpPolicy", env, learning_starts=4000, batch_size=160, learning_rate=1e-3, ent_coef='auto_0.2',
                 policy_kwargs=policy_kwargs, tau=0.005, gamma=0.93, train_freq=(30, "step"), gradient_steps=-1,
                 buffer_size=200000,
@@ -77,10 +97,10 @@ def main():
 
     # model = SAC.load("./src/SRPP/scripts/logs/sac_Franka_modelCircle_7", env=env)
     # model.load_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
-    model.learn(total_timesteps=total_steps, log_interval=10, tb_log_name="TorqueCircle_Tracking",
+    model.learn(total_timesteps=total_steps, log_interval=3, tb_log_name="TorqueCircle_Tracking_refsac",
                 callback=callback,
                 reset_num_timesteps=True)
-    model.save("./src/SRPP/scripts/logs/sac_Franka_model" + "TorqueCircle_1")
+    model.save("./src/SRPP/scripts/logs/sac_Franka_model" + "TorqueCircle_refsac")
     # model.save_replay_buffer("./src/SRPP/scripts/logs/sac_replay_buffer")
 
     # for i in range(2, k_update_times + 1):
