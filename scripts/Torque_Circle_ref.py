@@ -102,6 +102,10 @@ class TorqueCircleTrajectory(gymnasium.Env):
     def __init__(self, thr_dist=5, thr_jt=0.2 * PI, thr_ori=0.08, thr_vel=0.01, weight=0.00069, vel=4.0, accel=4.0,
                  length=159, update_k_everysteps=40000, zone_num=10, error_buf=None, limb=None, test=False):
 
+        self.ref_q_dot = None
+        self.q_dot = None
+        self.joint_state_noise = np.array([0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005])
+        self.q_dot_noise_std = np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02, 0.02])
         self.error = np.zeros(4, )
         self.rms_record = 0
         self.next_ref_joint_state = None
@@ -117,7 +121,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
 
         # 定义观测空间
         self.torque_space = spaces.Box(low=obs_torque_low_bd, high=obs_torque_high_bd, dtype=np.float64)
-        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(44,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(58,), dtype=np.float64)
         # 定义动作空间
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(14,), dtype=np.float32)  # temporary action torque
 
@@ -296,6 +300,8 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.torque_state = np.array(
             [self.limb.joint_efforts()[n] for n in self.limb._joint_names])  # the whole 7 joints
         self.joint_state = np.array([self.limb._joint_angle[n] for n in self.limb._joint_names])  # the whole 7 joints
+
+        self.joint_state = self.generate_white_gaussian_noise(self.joint_state,self.joint_state_noise)
         self.pre_joint_state = self.joint_state
         self.pre_torque_state = self.torque_state
         self.state_xyz = 1000 * self.limb.endpoint_pose()['position']  # millimeter
@@ -308,6 +314,10 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.ori_loss = 0
         self.joint_state_error = self.ref_joint_state - self.joint_state
         self.ref_velocity = 0.001 * (self.ref_xyz - self.pre_ref_xyz) / time_delta
+        self.q_dot = self.limb.velocities()
+        # add white noise for sim-real
+        self.q_dot = self.generate_white_gaussian_noise(self.q_dot, self.q_dot_noise_std)
+        self.ref_q_dot = self.joint_trajectory_velocities[0]
         temp = [
             self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
             # self.state_orientation.x, self.state_orientation.y,
@@ -319,7 +329,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         alter_torque_state = self.Compute_torque_state(self.torque_state)
         alter_pre_torque_state = self.Compute_torque_state(self.pre_torque_state)
         state = np.hstack((self.joint_state / PI, self.ref_joint_state / PI, self.joint_state_error / PI,
-                           alter_torque_state, alter_pre_torque_state,
+                           alter_torque_state, alter_pre_torque_state, self.q_dot, self.ref_q_dot,
                            self.state_xyz / 1000, self.ref_xyz / 1000))
         self.state = np.hstack((state, temp))
         # 返回初始状态
@@ -336,6 +346,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.pre_ref_joint_state = self.ref_joint_state
 
         self.joint_state = np.array([self.limb._joint_angle[n] for n in self.limb._joint_names])  # the whole 7 joints
+        self.joint_state = self.generate_white_gaussian_noise(self.joint_state, self.joint_state_noise)
         # print("joint_state is : \n",self.joint_state)
         self.state_xyz = 1000 * self.limb.endpoint_pose()['position']
         self.state_orientation = self.limb.endpoint_pose()['orientation']  # this is an array of type quaternion
@@ -350,13 +361,17 @@ class TorqueCircleTrajectory(gymnasium.Env):
         alter_torque_state = self.Compute_torque_state(self.torque_state)
         alter_pre_torque_state = self.Compute_torque_state(self.pre_torque_state)
         # print("alter_torque_state is:", alter_torque_state)
+        self.q_dot = self.limb.velocities()
+        # add white noise for sim-real
+        self.q_dot = self.generate_white_gaussian_noise(self.q_dot, self.q_dot_noise_std)
+        self.ref_q_dot = self.joint_trajectory_velocities[self.time]
         temp = [
             self.linear_vel[0], self.linear_vel[1], self.linear_vel[2],
             # self.state_orientation.x, self.state_orientation.y,
             # self.state_orientation.z, self.state_orientation.w
         ]
         state = np.hstack((self.joint_state / PI, self.ref_joint_state / PI, self.joint_state_error / PI,
-                           alter_torque_state, alter_pre_torque_state,
+                           alter_torque_state, alter_pre_torque_state, self.q_dot, self.ref_q_dot,
                            self.state_xyz / 1000, self.ref_xyz / 1000))
         self.state = np.hstack((state, temp))
 
@@ -367,49 +382,50 @@ class TorqueCircleTrajectory(gymnasium.Env):
         time_d = self.time
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         q_alter, qd_alter = self.Compute_torque_action(action)
+        # q_alter = self.Compute_torque_action(action)
+        for i in range(4):
+            now_torque = self.PD_compute_torque(time_d, q_alter, qd_alter)
+            # now_torque = self.PD_compute_torque(time_d, 0, 0)
 
-        now_torque = self.PD_compute_torque(time_d, q_alter, qd_alter)
-        # now_torque = self.PD_compute_torque(time_d, 0, 0)
-
-        if self.torque_space.contains(now_torque):
-            self.freeze_step = 0
-            self.pre_torque_state = self.torque_state
-            self.torque_state = now_torque
-            # print("exec torque")
-            self.limb.exec_torque_cmd(now_torque)
-        else:
-            self.freeze_step += 1
-            if self.freeze_step >= 8:
+            if self.torque_space.contains(now_torque):
+                self.freeze_step = 0
+                self.pre_torque_state = self.torque_state
+                self.torque_state = now_torque
+                # print("exec torque")
+                self.limb.exec_torque_cmd(now_torque)
+            else:
+                self.freeze_step += 1
+                if self.freeze_step >= 8:
+                    reward -= 5
+                    print("freeze step reset \n")
+                    self.error_buf.error_step()
+                    return self.state, reward, True, False, {}
+                self.pre_torque_state = self.torque_state
+                self.limb.exec_torque_cmd(self.torque_state)
                 reward -= 5
-                print("freeze step reset \n")
-                self.error_buf.error_step()
-                return self.state, reward, True, False, {}
-            self.pre_torque_state = self.torque_state
-            self.limb.exec_torque_cmd(self.torque_state)
-            reward -= 5
 
-        # 首先unpause，发布消息后，开始仿真
-        rospy.wait_for_service("/gazebo/unpause_physics")
-        try:
-            self.unpause()
-        except (rospy.ServiceException) as e:
-            print("/gazebo/unpause_physics service call failed")
-        # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
-        time.sleep(time_delta)
-        # 然后我们停止仿真，开始观测目前的状态
-        rospy.wait_for_service("/gazebo/pause_physics")
-        try:
-            pass
-            self.pause()
-        except (rospy.ServiceException) as e:
-            print("/gazebo/pause_physics service call failed")
+            # 首先unpause，发布消息后，开始仿真
+            rospy.wait_for_service("/gazebo/unpause_physics")
+            try:
+                self.unpause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/unpause_physics service call failed")
+            # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
+            time.sleep(time_delta/4)
+            # 然后我们停止仿真，开始观测目前的状态
+            rospy.wait_for_service("/gazebo/pause_physics")
+            try:
+                pass
+                self.pause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/pause_physics service call failed")
 
-        # update  the robot state
-        self.update_robot_state()
+            # update  the robot state
+            self.update_robot_state()
 
         # 计算奖励
         reward_delta = self._compute_reward()
-        reward += reward_delta
+        reward += reward_delta*10
 
         joint_state_difs = self.joint_state - self.ref_joint_state
         # print("joint_state_difs are:", joint_state_difs)
@@ -434,11 +450,11 @@ class TorqueCircleTrajectory(gymnasium.Env):
                 self.count_checkpoint += 1
                 if time_d >= self.ck_point_num:
                     done = True
-                    reward += 1 + 10 * self.count_checkpoint / self.traj_length
+                    reward += 5 + 10 * self.count_checkpoint / self.traj_length
                     self.count_done += 1
                 else:
                     done = False
-                    reward += 1
+                    reward += 5
             else:
                 if time_d < self.ck_point_num:
                     done = False
@@ -573,15 +589,17 @@ class TorqueCircleTrajectory(gymnasium.Env):
 
     def Compute_torque_action(self, torque):
         # Add a low pass filter
-        if (self.time - 1) % 3 == 0:
-            torque_1_7 = torque[0:7] * (0.85 * qd_lim_1_7 * time_delta / 2)
-            torque_8_14 = torque[7:] * (0.85 * qd_lim_8_14 * time_delta / 2)
-            self.torque1to7_store = torque_1_7
-            self.torque8to14_store = torque_8_14
-        else:
-            torque_1_7 = self.torque1to7_store
-            torque_8_14 = self.torque8to14_store
-        return torque_1_7, torque_8_14
+        # if (self.time - 1) % 3 == 0:
+        #     torque_1_7 = torque[0:7] * (0.55 * qd_lim_1_7 * time_delta / 2)
+        #     torque_8_14 = torque[7:] * (0.55 * qd_lim_8_14 * time_delta / 2)
+        #     self.torque1to7_store = torque_1_7
+        #     self.torque8to14_store = torque_8_14
+        # else:
+        #     torque_1_7 = self.torque1to7_store
+        #     torque_8_14 = self.torque8to14_store
+        torque_1_7 = torque[0:7] * (0.55 * qd_lim_1_7 * time_delta / 2)
+        torque_8_14 = torque[7:] * (0.55 * qd_lim_8_14 * time_delta / 2)
+        return torque_1_7,torque_8_14
 
     #################################################################################################
     # PD law related:::
@@ -602,14 +620,14 @@ class TorqueCircleTrajectory(gymnasium.Env):
         q = self.joint_state
         q_dot_desired = self.joint_trajectory_velocities[time] + qd_alter
         q_dot = self.limb.velocities()
-        q_dot_noise_std = np.array([0.02, 0.02, 0.02, 0.03, 0.03, 0.03, 0.03])  # add white noise for sim-real
-        q_dot = self.generate_white_gaussian_noise(q_dot, q_dot_noise_std)
+        # q_dot_noise_std = np.array([0.02, 0.02, 0.02, 0.03, 0.03, 0.03, 0.03])  # add white noise for sim-real
+        q_dot = self.generate_white_gaussian_noise(q_dot, self.q_dot_noise_std)
         q_ddot_desired = self.joint_trajectory_accelerations[time]
 
         e = q_desired - q
         e_dot = q_dot_desired - q_dot
         M = self.limb.joint_inertia_matrix()
-        M = self.generate_white_gaussian_noise(M, 0.01)
+        M = self.generate_white_gaussian_noise(M, 0.005)
         C = self.limb.coriolis_comp()
         G = self.limb.gravity_comp()
         tau = np.dot(M, q_ddot_desired + self.KD * e_dot + self.KP * e)
@@ -620,35 +638,35 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.time += 1
         time_d = self.time
         now_torque = self.PD_compute_torque(time_d, 0, 0)
+        for i in range(4):
+            if self.torque_space.contains(now_torque):
+                self.freeze_step = 0
+                self.pre_torque_state = self.torque_state
+                self.torque_state = now_torque
+                # print("exec torque")
+                self.limb.exec_torque_cmd(now_torque)
+            else:
+                self.pre_torque_state = self.torque_state
+                self.limb.exec_torque_cmd(self.torque_state)
 
-        if self.torque_space.contains(now_torque):
-            self.freeze_step = 0
-            self.pre_torque_state = self.torque_state
-            self.torque_state = now_torque
-            # print("exec torque")
-            self.limb.exec_torque_cmd(now_torque)
-        else:
-            self.pre_torque_state = self.torque_state
-            self.limb.exec_torque_cmd(self.torque_state)
+            # 首先unpause，发布消息后，开始仿真
+            rospy.wait_for_service("/gazebo/unpause_physics")
+            try:
+                self.unpause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/unpause_physics service call failed")
+            # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
+            time.sleep(time_delta/4)
+            # 然后我们停止仿真，开始观测目前的状态
+            rospy.wait_for_service("/gazebo/pause_physics")
+            try:
+                pass
+                self.pause()
+            except (rospy.ServiceException) as e:
+                print("/gazebo/pause_physics service call failed")
 
-        # 首先unpause，发布消息后，开始仿真
-        rospy.wait_for_service("/gazebo/unpause_physics")
-        try:
-            self.unpause()
-        except (rospy.ServiceException) as e:
-            print("/gazebo/unpause_physics service call failed")
-        # 接下来需要停一小段时间，让小车以目前的速度行驶一段时间，TIME_DELTA = 0.1s
-        time.sleep(time_delta)
-        # 然后我们停止仿真，开始观测目前的状态
-        rospy.wait_for_service("/gazebo/pause_physics")
-        try:
-            pass
-            self.pause()
-        except (rospy.ServiceException) as e:
-            print("/gazebo/pause_physics service call failed")
-
-        # update  the robot state
-        self.update_robot_state()
+            # update  the robot state
+            self.update_robot_state()
         reward_delta = self._compute_reward()
 
         done = False

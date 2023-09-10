@@ -81,7 +81,7 @@ def main():
     o, _ = env.reset()
     r, d, ep_ret, ep_len, n = 0, False, 0, 0, 0
     ep_rms_error = 0
-    while n < 50:
+    while n < 20:
         d = env.pre_train_step()
         # print("round:",n, "\n")
         if d:
@@ -90,7 +90,7 @@ def main():
     env.error_buf.flag_set()
     # Create network model or load a pretrained model
     model = SAC("MlpPolicy", env, learning_starts=4000, batch_size=160, learning_rate=1e-3, ent_coef='auto_0.2',
-                policy_kwargs=policy_kwargs, tau=0.005, gamma=0.93, train_freq=(30, "step"), gradient_steps=-1,
+                policy_kwargs=policy_kwargs, tau=0.005, gamma=0.95, train_freq=(30, "step"), gradient_steps=-1,
                 buffer_size=200000,
                 target_update_interval=1, verbose=1, tensorboard_log="./src/SRPP/scripts/logs/sac_Franka_data/",
                 action_noise=None, use_sde=False, sde_sample_freq=-1, use_sde_at_warmup=False, _init_setup_model=True)
