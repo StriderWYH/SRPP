@@ -100,7 +100,7 @@ class TorqueCircleTrajectory(gymnasium.Env):
 
     # thr_dist(mm), thr_jt(rad), thr_ori(), thr_vel(m/s)
     def __init__(self, thr_dist=5, thr_jt=0.2 * PI, thr_ori=0.08, thr_vel=0.01, weight=0.00069, vel=4.0, accel=4.0,
-                 length=239, update_k_everysteps=40000, zone_num=10, error_buf=None, limb=None, test=False):
+                 length=79, update_k_everysteps=40000, zone_num=10, error_buf=None, limb=None, test=False):
         self.max_dist_error = 0
         self.ref_q_dot = None
         self.q_dot = None
@@ -219,11 +219,8 @@ class TorqueCircleTrajectory(gymnasium.Env):
         self.samplePoint = []  # millimeter
         self.sampleAngle = []
         self.ck_point_num = length
-        for t in range(0, 80):
+        for t in range(0, length+1):
             point = np.array([350 + t * 5, 0, 400])
-            self.samplePoint.append(point)
-        for t in range(0, 160):
-            point = np.array([250*(np.cos(0.0125*PI*t)**3)+500, 250*(np.sin(0.0125*PI*t)**3), 150*(np.sin(2*0.0125*PI*t)**2)+ 400 ])
             self.samplePoint.append(point)
         for t in range(0, length +1):
             temp_check = self.limb.inverse_kinematics(self.samplePoint[t] / 1000,
